@@ -1,0 +1,15 @@
+# -*- coding: utf-8 -*-
+
+from hoopa import Spider
+
+
+class ${spider_class_name}(Spider):
+    name = "${spider_name}"
+    start_urls = []
+
+    def parse(self, request, response):
+        print(response)
+
+
+if __name__ == "__main__":
+    ${spider_class_name}.start()

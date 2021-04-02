@@ -1,0 +1,41 @@
+# -*- coding: utf-8 -*-
+
+from hoopa import Spider
+from hoopa import Item
+from hoopa import Middleware
+
+
+class DataItem(Item):
+    pass
+
+
+class ${spider_class_name}(Spider):
+    name = "${spider_name}"
+    start_urls = []
+
+    async def init(self):
+        pass
+
+    async def start_requests(self):
+        pass
+
+    def parse(self, request, response):
+        print(response)
+
+
+middleware = Middleware()
+
+
+@middleware.request
+async def set_request_middleware(spider_ins, request):
+    pass
+
+
+@middleware.response
+async def set_response_middleware(spider_ins, request, response):
+    pass
+
+
+if __name__ == "__main__":
+    middleware_list = [middleware]
+    ${spider_class_name}.start(middleware=middleware_list)

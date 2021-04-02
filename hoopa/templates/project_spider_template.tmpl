@@ -1,0 +1,17 @@
+# -*- coding: utf-8 -*-
+
+from hoopa import Spider
+from .middlewares.common_middleware import common_middleware
+
+
+class ${spider_class_name}(Spider):
+    name = "${spider_name}"
+    start_urls = []
+
+    def parse(self, request, response):
+        print(response)
+
+
+if __name__ == "__main__":
+    middleware_list = [common_middleware]
+    ${spider_class_name}.start(middleware=middleware_list)
