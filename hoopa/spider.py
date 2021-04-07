@@ -405,37 +405,8 @@ class Spider(BaseSpider, ABC):
 
         await self.stop()
 
-    async def _start(self):
-        logger.info("Spider started!")
-
-        try:
-            await self._start_spider()
-            # spider_stats = await self.close()
-            # await self.downloader.close()
-            # await self.stop()
-        except KeyboardInterrupt as e:
-            await self.stop()
-            await asyncio.sleep(1)
-        finally:
-            # spider_stats_sorted_keys = sorted(spider_stats.items(), key=operator.itemgetter(0))
-            # body = "stats\n"
-            # body += "\n".join(f"{k:50s}: {v}" for k, v in spider_stats_sorted_keys)
-            # logger.info(body)
-            # finish_time = spider_stats.get("finish_time")
-            # start_time = spider_stats.get("start_time")
-            # logger.info(f"Time usage: {finish_time - start_time}")
-
-            # await self.close()
-            logger.info("Spider finished!")
-
     @classmethod
     async def async_start(cls, middleware: typing.Union[typing.Iterable, Middleware] = None, loop=None):
-        """
-        Start an async spider
-        :param middleware: customize middleware or a list of middleware
-        :param loop:
-        :return: An instance of :cls:`Spider`
-        """
         loop = loop or asyncio.get_event_loop()
         spider_ins = cls(middleware=middleware, loop=loop)
         await spider_ins._start_spider()

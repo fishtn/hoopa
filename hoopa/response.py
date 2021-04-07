@@ -27,7 +27,7 @@ class Response:
     history: typing.Union[list, tuple] = None
     encoding: str = None
 
-    ok: int = 1  # 请求状态： 1正常；0失败，会进行重试；-1失败，不进行失败，直接进入失败队列
+    ok: int = 1  # 请求状态： 1成功；0失败，会进行重试；-1失败，不进行失败，直接进入失败队列
     error_type: int = None  # 错误名称
     debug_msg: str = None  # 调试信息
 
@@ -71,22 +71,9 @@ class Response:
     def css(self, re_str):
         return self.selector.css(re_str)
 
-    @property
-    def response_url(self):
-        if self.history:
-            last_res_header = self.history[-1].headers
-            last_res_url = last_res_header.get("Location", None)
-
-            if not last_res_url:
-                last_res_url = last_res_header.get("location", None)
-
-            return last_res_url
-        else:
-            return self.url
-
     def serialize(self):
         request_dict = {}
-        for item in ["response_url", "status", "body", 'text', 'encoding', "ok", "error_type", "debug_msg"]:
+        for item in ["url", "status", "body", 'text', 'encoding', "ok", "error_type", "debug_msg"]:
             request_dict.setdefault(item, getattr(self, item))
         return request_dict
 
@@ -101,16 +88,10 @@ class Response:
             except LookupError:
                 encoding = None
         if not encoding:
-            if mimetype.type == "application" and (
-                    mimetype.subtype == "json" or mimetype.subtype == "rdap"
-            ):
-                # RFC 7159 states that the default encoding is UTF-8.
-                # RFC 7483 defines application/rdap+json
+            if mimetype.type == "application" and (mimetype.subtype == "json" or mimetype.subtype == "rdap"):
                 encoding = "utf-8"
             elif self._body is None:
-                raise RuntimeError(
-                    "Cannot guess the encoding of " "a not yet read body"
-                )
+                raise RuntimeError("Cannot guess the encoding of " "a not yet read body")
             else:
                 encoding = cchardet.detect(self._body)["encoding"]
         if not encoding:

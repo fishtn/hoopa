@@ -9,7 +9,7 @@
 - 支持aiohttp、httpx
 - 支持断点续传
 
-> 项目还在开发测试中，请勿用于生产环境，若用于生产环境请谨慎
+> 项目还在开发测试中，请勿用于生产环境
 
 
 ## 环境要求：
@@ -58,6 +58,7 @@ if __name__ == "__main__":
 
 ## 感谢
 
+-   [Tinepeas](https://github.com/kingname/Tinepeas)
 -   [ruia](https://github.com/howie6879/ruia)
 -   [feapder](https://github.com/Boris-code/feapder)
 -   [scrapy](https://github.com/scrapy/scrapy)
