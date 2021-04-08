@@ -60,8 +60,9 @@ class Scheduler:
 
         request = await self.scheduler_queue.get(priority)
 
-        await self.stats.inc_value('queue/request_count', 1)
-        logger.debug(f"get request {request}")
+        if request:
+            await self.stats.inc_value('queue/request_count', 1)
+            logger.debug(f"get request {request}")
         return request
 
     async def add(self, requests: typing.Union[Request, typing.List[Request]]):
