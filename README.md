@@ -24,10 +24,9 @@ pip install -U hoopa[uvloop]
 
 # For Windows
 pip install -U hoopa
-
 ```
 
-## 小试一下
+## 开始
 
 创建爬虫
 
@@ -35,7 +34,7 @@ pip install -U hoopa
 hoopa create -s first_spider
 ```
 
-创建后的爬虫代码如下：
+然后添加url：http://httpbin.org/get
 
 ```python
 
@@ -43,8 +42,8 @@ import hoopa
 
 
 class FirstSpider(hoopa.Spider):
-    async def start_requests(self):
-        yield hoopa.Request("https://www.baidu.com")
+    name = "first"
+    start_urls = ["http://httpbin.org/get"]
 
     async def parse(self, request, response):
         print(response)
@@ -54,6 +53,7 @@ if __name__ == "__main__":
     FirstSpider().start()
         
 ```
+
 
 
 ## 感谢

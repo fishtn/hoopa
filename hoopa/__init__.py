@@ -30,4 +30,4 @@ from hoopa.utils.http_params import AiohttpRequest, AiohttpClient, HttpxRequest,
 from hoopa.utils.log import Logging
 from hoopa.utils.project import Setting
 
-__version__ = "0.0.3"
+__version__ = "0.0.4"
