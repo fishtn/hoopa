@@ -15,6 +15,8 @@ from httpx import Headers, Cookies
 from multidict import CIMultiDictProxy
 from parsel import Selector
 
+from hoopa.utils.url import get_location_from_history
+
 
 @dataclass
 class Response:
@@ -98,6 +100,14 @@ class Response:
             encoding = "utf-8"
 
         return encoding
+
+    @property
+    def response_url(self):
+        if self.history:
+            last_res_url = get_location_from_history(self.history[-1].headers)
+            return last_res_url
+        else:
+            return self.url
 
     def __repr__(self):
         return f"<Response [{self.status}]>"

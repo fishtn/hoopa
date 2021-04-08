@@ -68,7 +68,6 @@ class RabbitMqPool:
 
     async def subscribe(self, timeout: int) -> None:
         declaration_result = await self.queue.declare()
-        print(declaration_result.message_count)
         if declaration_result.message_count > 0:
             message = await self.queue.get(timeout=timeout)
             return message

@@ -113,6 +113,7 @@ class HttpxDownloader(Downloader):
         self.session = None
 
     async def init(self, setting):
+
         if setting["HTTP_CLIENT_KWARGS"]:
             self.session = httpx.AsyncClient(**setting["HTTP_CLIENT_KWARGS"])
         else:

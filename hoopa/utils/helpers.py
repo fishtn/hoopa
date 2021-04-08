@@ -91,7 +91,3 @@ def to_bytes(bytes_or_str, encoding="utf-8", errors='strict'):
 def get_uuid():
     return str(uuid.uuid4())
 
-
-if __name__ == '__main__':
-    print(get_datetime("%Y-%m-%d"))
-    print(get_datetime("%H:%M:%S"))

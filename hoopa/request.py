@@ -47,7 +47,7 @@ class Request:
             self.callback = callback.__name__
 
         # session参数
-        self.client_kwargs = client_kwargs
+        self.client_kwargs = client_kwargs if client_kwargs else {}
         # 其他参数
         self.http_kwargs = http_kwargs
 
@@ -90,7 +90,7 @@ class Request:
     @property
     def replace_to_kwargs(self):
         """
-        返回请求包需要的参数
+        生成请求包需要的参数
         @return:
         """
         # http参数需要去除的字段
@@ -102,6 +102,14 @@ class Request:
                     _kwargs = {**_kwargs, **value}
                 else:
                     _kwargs.setdefault(name, value)
+
+        # 把params字典的值统一转为str类型
+        _params = _kwargs.get("params", {})
+        _new_params = {}
+        for k, v in _params.items():
+            _new_params[k] = str(v)
+        _kwargs["params"] = _new_params
+
         return _kwargs
 
     @property
@@ -113,7 +121,7 @@ class Request:
         _url = self.url
         if self.params:
             _url = add_or_replace_parameters(self.url, self.params)
-        print(_url)
+
         return canonicalize_url(_url)
 
     def __repr__(self):

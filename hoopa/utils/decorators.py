@@ -18,15 +18,15 @@ from ..response import Response
 
 def http_decorator(func):
     @wraps(func)
-    async def log(spider_ins, request: Request):
+    async def log(http_ins, request: Request):
         response: Response = Response()
         try:
-            response = await func(spider_ins, request)
+            response = await func(http_ins, request)
             return response
         except Exception as e:
             response.ok = 0
             response.error_type = e.__class__.__name__
-            response.debug_msg = traceback.format_exc(spider_ins.logging.get_tb_limit())
+            response.debug_msg = traceback.format_exc()
             logger.error(f"{request} fetch error \n {response.debug_msg}")
         finally:
             if request.request_config.get("HTTP_LOG", True):

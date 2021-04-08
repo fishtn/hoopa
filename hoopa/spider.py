@@ -136,7 +136,6 @@ class Spider(BaseSpider, ABC):
         # 加载爬虫里面的配置，覆盖配置文件的配置
         self.setting.init_settings(self)
         self.logging = Logging(self.setting)
-        self.setting.print_log(self)
 
         # 加载middleware
         middleware_list = [downloader_stats]
@@ -148,6 +147,8 @@ class Spider(BaseSpider, ABC):
             middleware_list.extend(self.setting["MIDDLEWARES"])
 
         self.middleware = reduce(lambda x, y: x + y, middleware_list)
+
+        self.setting.print_log(self)
 
     async def _load(self):
         # 初始化 spider init
@@ -203,7 +204,7 @@ class Spider(BaseSpider, ABC):
         @rtype: bool
         @param item_list:
         """
-        if self.setting['SCHEDULER_QUEUE'] == const.RedisQueue:
+        if self.setting['QUEUE_CLS'] == const.RedisQueue:
             for item in item_list:
                 item_str_json = ujson.dumps(item.__dict__)
                 item_md5 = get_md5(item_str_json)
@@ -213,11 +214,9 @@ class Spider(BaseSpider, ABC):
 
                 if result:
                     logger.info(f"{item.__dict__}")
-            return result
         else:
             for item in item_list:
                 logger.info(f"{item.__dict__}")
-            return True
 
     async def _process_async_callback(self, request: Request, response: Response, callback_results: AsyncGeneratorType):
         # if not callback_results or isinstance(callback_results, CoroutineType):
@@ -233,11 +232,11 @@ class Spider(BaseSpider, ABC):
         async for callback_result in callback_results:
             if isinstance(callback_result, Request):
                 key = callback_result.priority
-                item_stats[key] += item_stats.get(key, 1) + 1
+                item_stats[key] = item_stats.get(key, 1) + 1
                 request_list.append(callback_result)
             elif isinstance(callback_result, Item):
                 key = callback_result.class_name
-                item_stats[key] += item_stats.get(key, 1) + 1
+                item_stats[key] = item_stats.get(key, 1) + 1
                 item_list.append(callback_result)
             else:
                 callback_result_name = type(callback_result).__name__
@@ -251,14 +250,15 @@ class Spider(BaseSpider, ABC):
                 logger.debug(f"{request} push request {count}")
 
             # 处理item
-            await self.process_item(item_list)
+            if item_list:
+                await self.process_item(item_list)
 
             # 统计item
             for k, v in item_stats.items():
-                self.stats.inc_value(f"item/{k}_count", v)
+                await self.stats.inc_value(f"item/{k}_count", v)
             # 统计request
             for k, v in request_stats.items():
-                self.stats.inc_value(f"request/priority_count/{k}", v)
+                await self.stats.inc_value(f"request/priority_count/{k}", v)
         except Exception as e:
             response.ok = 0
             response.error_type = e.__class__.__name__
@@ -431,8 +431,10 @@ class Spider(BaseSpider, ABC):
         await self.scheduler.close()
         await self.downloader.close()
         spider_stats_sorted_keys = sorted(spider_stats.items(), key=operator.itemgetter(0))
+        blank = " " * 4
         body = "stats\n"
-        body += "\n".join(f"{k:50s}: {v}" for k, v in spider_stats_sorted_keys)
+
+        body += f"\n".join(f"{blank}{k:50s}: {v}" for k, v in spider_stats_sorted_keys)
         logger.info(body)
         await self.cancel_all_tasks()
 

@@ -15,7 +15,7 @@ SETTINGS_PRIORITIES = {
 }
 
 
-spider_attr_list = ['name', 'worker_numbers', 'download_delay', 'download_delay', 'run_forever', 'queue_cls',
+spider_attr_list = ['name', 'worker_numbers', 'download_delay', 'run_forever', 'queue_cls',
                     'clean_queue', 'priority', 'downloader_cls', 'downloader_global_session', 'http_client_kwargs',
                     'middlewares', 'dupefilter_cls', 'clean_dupefilter', 'dupefilter_setting', 'redis_setting',
                     'mq_uri', 'mq_api_port', 'mq_maxsize', 'log_level', 'log_write_file', 'serialization']
@@ -68,32 +68,22 @@ class Setting:
         """
         设置spider的配置
         """
-        # 获取spider的属性
-        members = []
-        for attr in dir(spider_ins):
-            if not callable(getattr(spider_ins, attr)) and not attr.startswith("__"):
-                members.append(attr)
 
-        for name in members:
-            if hasattr(self, name.upper()):
-                # 默认配置存在的值才进行设置值
-                if getattr(spider_ins, name) is not None:
-                    # 需要不为None
-                    self.set(name.upper(), getattr(spider_ins, name), "spider")
+        for name in spider_attr_list:
+            if getattr(spider_ins, name) is not None:
+                self.set(name.upper(), getattr(spider_ins, name), "spider")
 
-        spider_ins.worker_numbers = self.get("WORKER_NUMBERS")
+        # 去重default配置
+        if self.get("QUEUE_CLS") == const.RedisQueue:
+            self.set("DUPEFILTER_CLS", const.RedisDupeFilter, "default")
+        else:
+            self.set("DUPEFILTER_CLS", const.MemoryDupeFilter, "default")
 
-        if not self.get("DUPEFILTER_CLS"):
-            if self.get("QUEUE_CLS") == const.RedisQueue:
-                self.set("DUPEFILTER_CLS", const.RedisDupeFilter)
-            else:
-                self.set("DUPEFILTER_CLS", const.MemoryDupeFilter)
+        self.set("DUPEFILTER_SETTING", self.get("REDIS_SETTING"), "default")
+        self.set("CLEAN_DUPEFILTER", self.get("CLEAN_QUEUE"), "default")
 
-        if not self.get("DUPEFILTER_SETTING"):
-            self.set("DUPEFILTER_SETTING", self.get("REDIS_SETTING"))
-
-        if not self.get("CLEAN_DUPEFILTER"):
-            self.set("CLEAN_DUPEFILTER", self.get("CLEAN_QUEUE"))
+        for name in spider_attr_list:
+            setattr(spider_ins, name, self.get(name.upper()))
 
     def print_log(self, spider_ins):
         setting_level = "project"
@@ -101,16 +91,13 @@ class Setting:
             logger.debug(f"读取配置文件失败, 如果有配置文件，请检查是否配置正确")
             setting_level = "spider"
 
-        common_list = ['name', 'worker_numbers', 'download_delay', 'download_delay', 'run_forever',
+        common_list = ['name', 'worker_numbers', 'download_delay', 'run_forever',
                        'downloader_global_session', 'http_client_kwargs', 'log_level', 'log_write_file', 'serialization']
 
-        #                     '', 'dupefilter_cls', 'clean_dupefilter', 'dupefilter_setting', 'redis_setting',
-        #                     'mq_uri', 'mq_api_port', 'mq_maxsize', 'log_level', 'log_write_file', 'serialization']
-
-        body = f"setting  max_level({setting_level})"
+        body = f"setting  max_level--{setting_level}"
         
         # blank
-        blank = " " * 2
+        blank = " " * 4
         for item in common_list:
             body += f"\n{blank}{item:25s}: {self.get(item.upper())}"
 
@@ -129,9 +116,9 @@ class Setting:
         if dupefilter_cls == const.RedisDupeFilter:
             body += f"\n{blank}{'clean_dupefilter':25s}: {self.get('CLEAN_DUPEFILTER')}"
 
-        dupefilter_cls = self.get("DUPEFILTER_CLS")
-        dupefilter_cls_str = const_map.get(dupefilter_cls, dupefilter_cls)
-        body += f"\n{blank}{'dupefilter_cls':25s}: {dupefilter_cls_str}"
+        stats_cls = self.get("STATS_CLS")
+        stats_cls_str = const_map.get(stats_cls, stats_cls)
+        body += f"\n{blank}{'stats_cls':25s}: {stats_cls_str}"
 
         downloader_cls = self.get("DOWNLOADER_CLS")
         downloader_cls_str = const_map.get(downloader_cls, downloader_cls)
@@ -146,8 +133,8 @@ class Setting:
             for item in spider_ins.middleware.response_middleware:
                 response_middleware.append(item.__name__)
 
-            body += f"\n{'request middleware':50s}: {request_middleware}"
-            body += f"\n{'request response_middleware':50s}: {response_middleware}"
+            body += f"\n{blank}{'request_middleware':25s}: {request_middleware}"
+            body += f"\n{blank}{'response_middleware':25s}: {response_middleware}"
 
         logger.info(body)
 
@@ -173,15 +160,3 @@ def get_project_settings(settings_path="config.settings"):
         setting.project_setting = False
 
     return setting
-
-
-if __name__ == '__main__':
-
-    # get_project_settings()
-    # _setting = Setting()
-    # print(vars(_setting))
-    # members = [attr for attr in dir(_setting) if not callable(getattr(_setting, attr)) and not attr.startswith("__")]
-    #
-    # print(dir(_setting))
-    # print(members)
-    pass
