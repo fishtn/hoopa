@@ -25,7 +25,7 @@ class Request:
 
     def __init__(self, url, callback=None, method='get', headers=None, params=None,
                  data=None, json=None, meta=None, dont_filter=False, priority=0,
-                 request_config=None, client_kwargs=None, **http_kwargs):
+                 request_config=None, session=None, client_kwargs=None, **http_kwargs):
         self.url = url
         self.headers = headers
         self.method = method
@@ -46,7 +46,9 @@ class Request:
         else:
             self.callback = callback.__name__
 
-        # session参数
+        # session参数， http请求的session
+        self.session = session
+
         self.client_kwargs = client_kwargs if client_kwargs else {}
         # 其他参数
         self.http_kwargs = http_kwargs
@@ -94,7 +96,8 @@ class Request:
         @return:
         """
         # http参数需要去除的字段
-        not_kwargs_list = ["message", "callback", "dont_filter", "meta", "priority", "retry_times", "request_config"]
+        not_kwargs_list = ["session", "message", "callback", "dont_filter", "meta", "priority", "retry_times",
+                           "request_config", "client_kwargs"]
         _kwargs = {}
         for name, value in vars(self).items():
             if value is not None and name not in not_kwargs_list:
@@ -126,4 +129,5 @@ class Request:
 
     def __repr__(self):
         return f"<{self.method} {self.request_url}>"
+
 

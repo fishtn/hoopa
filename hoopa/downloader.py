@@ -13,26 +13,21 @@ from hoopa.response import Response
 
 
 class Downloader:
+    downloader_global_session = None
+    session = None
+    close_session = None
+
     async def init(self, setting):
         pass
 
     async def close(self):
         pass
 
-    async def download(self, request: Request) -> Response:
-        pass
-
     async def fetch(self, request: Request) -> Response:
         pass
 
-    async def request(self, request: Request, global_session=False) -> Response:
-        if global_session:
-            # 全局session
-            response = await self.fetch(request)
-        else:
-            # 一个请求一个session
-            response = await self.download(request)
-        return response
+    async def get_session(self, request):
+        pass
 
 
 class AiohttpDownloader(Downloader):
@@ -41,10 +36,9 @@ class AiohttpDownloader(Downloader):
     """
     def __init__(self):
         self.tc = None
-        self.session = None
-        self.session_flag = False
 
     async def init(self, setting):
+        self.downloader_global_session = setting["DOWNLOADER_GLOBAL_SESSION"]
         if setting["HTTP_CLIENT_KWARGS"]:
             self.session = aiohttp.ClientSession(**setting["HTTP_CLIENT_KWARGS"])
         else:
@@ -60,60 +54,46 @@ class AiohttpDownloader(Downloader):
         if self.session:
             await self.session.close()
 
-    @http_decorator
-    async def download(self, request: Request) -> Response:
-        _kwargs = request.replace_to_kwargs
-        client_kwargs = _kwargs.pop("client_kwargs", {})
-        async with aiohttp.ClientSession(**client_kwargs) as client:
-            resp = await client.request(**_kwargs)
-            try:
-                resp_text = await resp.text()
-            except UnicodeDecodeError:
-                resp_text = None
-
-        response = Response(
-            url=str(resp.url),
-            _body=await resp.read(),
-            _text=resp_text,
-            status=resp.status,
-            cookies=resp.cookies,
-            headers=resp.headers,
-            history=resp.history,
-        )
-
-        return response
+    async def get_session(self, request):
+        """
+        优先使用request参数的session
+        client_kwargs不为空时，自己生成
+        默认使用全局session
+        """
+        if request.session:
+            return request.session
+        elif request.client_kwargs:
+            # 单个请求创建的会话需要使用后关闭
+            self.close_session = True
+            return aiohttp.ClientSession(**request.client_kwargs)
+        else:
+            return self.session
 
     @http_decorator
     async def fetch(self, request: Request) -> Response:
+        session = await self.get_session(request)
         _kwargs = request.replace_to_kwargs
-        async with self.session.request(**_kwargs) as resp:
-            try:
-                resp_text = await resp.text()
-            except UnicodeDecodeError:
-                resp_text = None
-
-        response = Response(
-            url=str(resp.url),
-            _body=await resp.read(),
-            _text=resp_text,
-            status=resp.status,
-            cookies=resp.cookies,
-            headers=resp.headers,
-            history=resp.history,
-        )
-
-        return response
+        try:
+            async with session.request(**_kwargs) as resp:
+                response = Response(
+                    url=str(resp.url),
+                    _body=await resp.read(),
+                    status=resp.status,
+                    cookies=resp.cookies,
+                    headers=resp.headers,
+                    history=resp.history,
+                )
+                return response
+        finally:
+            if self.close_session:
+                await session.close()
 
 
 class HttpxDownloader(Downloader):
     """
     Httpx下载器
     """
-    def __init__(self):
-        self.session = None
-
     async def init(self, setting):
-
         if setting["HTTP_CLIENT_KWARGS"]:
             self.session = httpx.AsyncClient(**setting["HTTP_CLIENT_KWARGS"])
         else:
@@ -121,50 +101,41 @@ class HttpxDownloader(Downloader):
         return self.session
 
     async def close(self):
-        pass
-
-    @http_decorator
-    async def download(self, request: Request) -> Response:
-        _kwargs = request.replace_to_kwargs
-        client_kwargs = _kwargs.pop("client_kwargs", {})
-        async with httpx.AsyncClient(**client_kwargs) as client:
-            resp = await client.request(**_kwargs)
-
-            try:
-                resp_text = resp.text
-            except UnicodeDecodeError:
-                resp_text = None
-
-        response = Response(
-            url=str(resp.url),
-            _body=resp.content,
-            _text=resp_text,
-            status=resp.status_code,
-            cookies=resp.cookies,
-            headers=resp.headers,
-            history=resp.history,
-        )
-
-        return response
+        await self.session.aclose()
 
     @http_decorator
     async def fetch(self, request: Request) -> Response:
+        session = await self.get_session(request)
         _kwargs = request.replace_to_kwargs
-        resp = await self.session.request(**_kwargs)
 
         try:
-            resp_text = resp.text
-        except UnicodeDecodeError:
-            resp_text = None
+            resp = await self.session.request(**_kwargs)
+            response = Response(
+                url=str(resp.url),
+                _body=resp.content,
+                status=resp.status_code,
+                cookies=resp.cookies,
+                headers=resp.headers,
+                history=resp.history,
+            )
+            return response
+        finally:
+            if self.close_session:
+                await session.aclose()
 
-        response = Response(
-            url=str(resp.url),
-            _body=resp.content,
-            _text=resp_text,
-            status=resp.status_code,
-            cookies=resp.cookies,
-            headers=resp.headers,
-            history=resp.history,
-        )
+    async def get_session(self, request):
+        """
+        优先使用request参数的session
+        client_kwargs不为空时，自己生成
+        默认使用全局session
+        """
+        if request.session:
+            return request.session
+        elif request.client_kwargs:
+            # 单个请求创建的会话需要使用后关闭
+            self.close_session = True
+            return httpx.AsyncClient(**request.client_kwargs)
+        else:
+            return self.session
 
-        return response
+

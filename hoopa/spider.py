@@ -307,7 +307,7 @@ class Spider(BaseSpider, ABC):
                         logger.error(f"<Middleware {middleware.__name__}: {e}")
 
         # 执行完request_middleware，调用下载器
-        return await self.downloader.request(request, self.setting["DOWNLOADER_GLOBAL_SESSION"])
+        return await self.downloader.fetch(request)
 
     async def _run_response_middleware(self, request: Request, response: Response):
         # 如果response是request，返回异步生成器

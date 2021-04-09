@@ -10,7 +10,7 @@ from http.cookies import SimpleCookie
 
 import cchardet
 import ujson
-from aiohttp import ClientSession, helpers
+from aiohttp import helpers
 from httpx import Headers, Cookies
 from multidict import CIMultiDictProxy
 from parsel import Selector
@@ -25,7 +25,6 @@ class Response:
     status: int = -1
     headers: typing.Union[CIMultiDictProxy[str], Headers] = None
     cookies: typing.Union[SimpleCookie, Cookies] = None
-    session: ClientSession = None  # session
     history: typing.Union[list, tuple] = None
     encoding: str = None
 
@@ -33,7 +32,6 @@ class Response:
     error_type: int = None  # 错误名称
     debug_msg: str = None  # 调试信息
 
-    _text: str = ''  # 响应体decode
     _selector: Selector = None  # xpath的selector
 
     def json(self):
