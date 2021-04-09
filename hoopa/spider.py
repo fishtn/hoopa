@@ -80,7 +80,6 @@ class Spider(BaseSpider, ABC):
     - clean_queue: 清空任务队列，默认False.
     - priority: 指定队列优先级，redis优先队列有效.
     - downloader_cls: 下载器路径，默认：const.AiohttpDownloader(hoopa.downloader.AiohttpDownloader).
-    - downloader_global_session: 下载器是否使用全局session，默认True.
     - middlewares: 下载中间件.
     - dupefilter_cls: 去重器路径，不配置的话根据queue_cls来决定, MemoryQueue和RabbitMQQueue使用MemoryDupeFilter，RedisQueue使用RedisDupeFilter
     - clean_dupefilter: 清空去重器，默认等于clean_queue
@@ -104,7 +103,6 @@ class Spider(BaseSpider, ABC):
     clean_queue: bool = None
     priority: int = None
     downloader_cls: str = None
-    downloader_global_session: bool = None
     http_client_kwargs: bool = None
     middlewares: list = None
     dupefilter_cls: bool = None

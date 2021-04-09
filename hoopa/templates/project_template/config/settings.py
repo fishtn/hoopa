@@ -22,7 +22,6 @@ PRIORITY = None
 
 # 下载器aiohttp httpx
 DOWNLOADER_CLS = const.AiohttpDownloader
-DOWNLOADER_GLOBAL_SESSION = False
 HTTP_CLIENT_KWARGS = None
 
 # 下载中间件

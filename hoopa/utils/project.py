@@ -16,7 +16,7 @@ SETTINGS_PRIORITIES = {
 
 
 spider_attr_list = ['name', 'worker_numbers', 'download_delay', 'run_forever', 'queue_cls',
-                    'clean_queue', 'priority', 'downloader_cls', 'downloader_global_session', 'http_client_kwargs',
+                    'clean_queue', 'priority', 'downloader_cls', 'http_client_kwargs',
                     'middlewares', 'dupefilter_cls', 'clean_dupefilter', 'dupefilter_setting', 'redis_setting',
                     'mq_uri', 'mq_api_port', 'mq_maxsize', 'log_level', 'log_write_file', 'serialization']
 
@@ -92,7 +92,7 @@ class Setting:
             setting_level = "spider"
 
         common_list = ['name', 'worker_numbers', 'download_delay', 'run_forever',
-                       'downloader_global_session', 'http_client_kwargs', 'log_level', 'log_write_file', 'serialization']
+                       'http_client_kwargs', 'log_level', 'log_write_file', 'serialization']
 
         body = f"setting  max_level--{setting_level}"
         

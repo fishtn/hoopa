@@ -13,7 +13,6 @@ from hoopa.response import Response
 
 
 class Downloader:
-    downloader_global_session = None
     session = None
     close_session = None
 
@@ -38,12 +37,11 @@ class AiohttpDownloader(Downloader):
         self.tc = None
 
     async def init(self, setting):
-        self.downloader_global_session = setting["DOWNLOADER_GLOBAL_SESSION"]
         if setting["HTTP_CLIENT_KWARGS"]:
             self.session = aiohttp.ClientSession(**setting["HTTP_CLIENT_KWARGS"])
         else:
             jar = aiohttp.DummyCookieJar()
-            self.tc = TCPConnector(limit=500, force_close=True, enable_cleanup_closed=True, verify_ssl=False)
+            self.tc = TCPConnector(limit=100, force_close=True, enable_cleanup_closed=True, verify_ssl=False)
             self.session = aiohttp.ClientSession(connector=self.tc, cookie_jar=jar)
 
         return self.session
