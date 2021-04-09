@@ -42,6 +42,7 @@ requires = [
     "arrow",
     "w3lib",
     "loguru",
+    "ujson",
 ]
 
 
