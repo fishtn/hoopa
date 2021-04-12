@@ -26,7 +26,6 @@ class Request:
     REQUEST_CONFIG = {
         "RETRIES": 3,  # 重试次数
         "RETRY_DELAY": 0,  # 重试间隔
-        "HTTP_LOG": True,  # 请求的日志是否打印
         "RETRY_FUNC": Coroutine,  # 重试之前的函数调用
     }
 
@@ -139,6 +138,10 @@ class Request:
                 _http_kwargs[name] = value
         return _http_kwargs
 
+    @http_kwargs.setter
+    def http_kwargs(self, value):
+        self._http_kwargs = value
+
     @property
     def fp(self):
         return helpers.request_fingerprint(self)
@@ -153,5 +156,3 @@ class Request:
 
     def __repr__(self):
         return f"<{self.method} {self.request_url}>"
-
-

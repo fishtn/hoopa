@@ -12,7 +12,11 @@ class InvalidCallbackResult(Exception):
     pass
 
 
-class InvalidLogLevel(Exception):
+class InvalidLogLevelError(Exception):
+    pass
+
+
+class SpiderHookError(Exception):
     pass
 
 

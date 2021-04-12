@@ -31,9 +31,9 @@ class Scheduler:
     async def init(self, setting):
         self.setting = setting
         # 初始化dupefilter
-        self.dupefilter = await get_cls(setting["DUPEFILTER_CLS"], setting)
-        self.scheduler_queue = await get_cls(setting["QUEUE_CLS"], setting)
-        self.stats = await get_cls(self.setting["STATS_CLS"], self.setting)
+        self.dupefilter = await get_cls(setting["DUPEFILTER_CLS"], setting=setting)
+        self.scheduler_queue = await get_cls(setting["QUEUE_CLS"], setting=setting)
+        self.stats = await get_cls(self.setting["STATS_CLS"], setting=self.setting)
 
         # 删除队列
         if setting["CLEAN_QUEUE"]:

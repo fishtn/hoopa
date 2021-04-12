@@ -5,22 +5,25 @@
 import asyncio
 import operator
 import traceback
+import weakref
 from abc import ABC
 from asyncio import iscoroutinefunction
 from functools import reduce
 from inspect import isawaitable
 import typing
+from signal import SIGINT, SIGTERM
 from types import AsyncGeneratorType, CoroutineType
 
 import ujson
 from loguru import logger
 
+from hoopa.downloader import Downloader
 from hoopa.middlewares.stats import downloader_stats
 from hoopa.settings import const
 from hoopa.utils.log import Logging
 from hoopa.utils.asynciter import AsyncIter
 from hoopa.utils.helpers import spider_sleep, get_md5, split_list, get_uuid, get_timestamp, get_cls
-from hoopa.exceptions import InvalidCallbackResult
+from hoopa.exceptions import InvalidCallbackResult, SpiderHookError
 from hoopa.middleware import Middleware
 from hoopa.item import Item
 from hoopa.request import Request
@@ -28,6 +31,7 @@ from hoopa.response import Response
 from hoopa.scheduler import Scheduler
 from hoopa.utils.project import get_project_settings, Setting
 from hoopa.utils import decorators
+from hoopa.utils.url import get_location_from_history
 
 try:
     import uvloop
@@ -47,6 +51,20 @@ class BaseSpider:
         由于魔术方法__init__无法使用await，可以在爬虫重写这个方法，以达到初始化的目的
         """
         pass
+
+    async def _run_spider_hook(self, hook_func):
+        """
+        Run hook before/after spider start crawling
+        :param hook_func: aws function
+        :return:
+        """
+        if callable(hook_func):
+            try:
+                aws_hook_func = hook_func(weakref.proxy(self))
+                if isawaitable(aws_hook_func):
+                    await aws_hook_func
+            except Exception as e:
+                raise SpiderHookError(f"<Hook {hook_func.__name__}: {e}")
 
     async def start_requests(self):
         """
@@ -153,7 +171,9 @@ class Spider(BaseSpider, ABC):
         await self.init()
 
         # 初始化 download
-        self.downloader = await get_cls(self.setting["DOWNLOADER_CLS"], self.setting)
+        downloader_cls = self.setting["DOWNLOADER_CLS"]
+        http_client_kwargs = self.setting["HTTP_CLIENT_KWARGS"]
+        self.downloader: Downloader = await get_cls(downloader_cls, http_client_kwargs=http_client_kwargs)
 
         # 初始化 scheduler
         await self.scheduler.init(self.setting)
@@ -305,7 +325,14 @@ class Spider(BaseSpider, ABC):
                         logger.error(f"<Middleware {middleware.__name__}: {e}")
 
         # 执行完request_middleware，调用下载器
-        return await self.downloader.fetch(request)
+        response = await self.downloader.fetch(request)
+        if response.ok == 1:
+            if response.history:
+                last_url = get_location_from_history(response.history)
+                logger.debug(f"{request} redirect <{last_url}> success")
+            else:
+                logger.debug(f"{request} fetch {response}")
+        return response
 
     async def _run_response_middleware(self, request: Request, response: Response):
         # 如果response是request，返回异步生成器
@@ -346,6 +373,7 @@ class Spider(BaseSpider, ABC):
         """
         # 加载request中间件, 并调用下载器
         response = await self._run_request_middleware(request)
+
         # 加载response中间件
         callback_result = await self._run_response_middleware(request, response)
         # 处理异步返回的request和item
@@ -376,7 +404,7 @@ class Spider(BaseSpider, ABC):
         """
         启动爬虫，不断从队列中获取请求任务
         """
-        # 初始化，加载
+        # 初始化
         await self._load()
 
         if self.run:
@@ -401,29 +429,60 @@ class Spider(BaseSpider, ABC):
             # 检查爬虫状态
             await self.scheduler.check_scheduler(self)
 
-        await self.stop()
+        await self.finish()
+        await self.cancel_all_tasks()
+
+    async def _start(self, before_start=None, after_stop=None):
+
+        # 添加信号
+        # SIGINT：由Interrupt Key产生，通常是CTRL+C或者DELETE。发送给所有ForeGround Group的进程
+        # SIGTERM：请求中止进程，kill命令缺省发送
+        for signal in (SIGINT, SIGTERM):
+            try:
+                self.loop.add_signal_handler(
+                    signal, lambda: asyncio.ensure_future(self.cancel_all_tasks(signal))
+                )
+            except NotImplementedError:
+                logger.warning(f"当前平台不支持signal: {signal}")
+
+        # 爬虫开始之前执行
+        await self._run_spider_hook(before_start)
+
+        # 爬虫开始
+        try:
+            await self._start_spider()
+        finally:
+            # 爬虫结束后执行
+            await self._run_spider_hook(after_stop)
+            logger.info("Spider finished!")
 
     @classmethod
     async def async_start(cls, middleware: typing.Union[typing.Iterable, Middleware] = None, loop=None):
         loop = loop or asyncio.get_event_loop()
         spider_ins = cls(middleware=middleware, loop=loop)
-        await spider_ins._start_spider()
+        await spider_ins._start()
         return spider_ins
 
     @classmethod
-    def start(cls, middleware: typing.Union[typing.Iterable, Middleware] = None, loop=None):
+    def start(
+            cls,
+            middleware: typing.Union[typing.Iterable, Middleware] = None,
+            before_start=None,
+            after_stop=None,
+            loop=None
+    ):
         """
         爬虫入口, 非异步
         @rtype: object
         """
         loop = loop or asyncio.get_event_loop()
         spider_ins = cls(middleware=middleware, loop=loop)
-        loop.run_until_complete(spider_ins._start_spider())
+        loop.run_until_complete(spider_ins._start(before_start, after_stop))
         spider_ins.loop.run_until_complete(spider_ins.loop.shutdown_asyncgens())
         spider_ins.loop.close()
         return spider_ins
 
-    async def stop(self):
+    async def finish(self):
         await self.scheduler.stats.max_value("finish_time", get_timestamp())
         spider_stats = await self.stats.get_stats()
         await self.scheduler.close()
@@ -434,9 +493,8 @@ class Spider(BaseSpider, ABC):
 
         body += f"\n".join(f"{blank}{k:50s}: {v}" for k, v in spider_stats_sorted_keys)
         logger.info(body)
-        await self.cancel_all_tasks()
 
-    async def cancel_all_tasks(self):
+    async def cancel_all_tasks(self, _signal=None):
         logger.info(f"Stopping spider: {self.name}")
         tasks = []
         for task in asyncio.Task.all_tasks():

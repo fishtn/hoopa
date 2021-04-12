@@ -11,7 +11,6 @@ from loguru import logger
 import traceback
 
 from .helpers import spider_sleep
-from .url import get_location_from_history
 from ..request import Request
 from ..response import Response
 
@@ -28,13 +27,6 @@ def http_decorator(func):
             response.error_type = e.__class__.__name__
             response.debug_msg = traceback.format_exc()
             logger.error(f"{request} fetch error \n {response.debug_msg}")
-        finally:
-            if request.request_config.get("HTTP_LOG", True):
-                if response.history:
-                    last_url = get_location_from_history(response.history)
-                    logger.debug(f"{request} redirect <{last_url}> success")
-                else:
-                    logger.debug(f"{request} fetch success")
 
         return response
 

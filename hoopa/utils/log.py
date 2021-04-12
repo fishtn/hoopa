@@ -1,7 +1,8 @@
+import platform
 import sys
 from loguru import logger
 
-from hoopa.exceptions import InvalidLogLevel
+from hoopa.exceptions import InvalidLogLevelError
 
 
 class Logging:
@@ -13,7 +14,7 @@ class Logging:
         self.log_level = setting.get("LOG_LEVEL", "INFO").upper()
 
         if self.log_level not in ("TRACE", "DEBUG", "INFO", "SUCCESS", "WARNING", "ERROR", "CRITICAL"):
-            raise InvalidLogLevel(self.log_level)
+            raise InvalidLogLevelError(self.log_level)
 
         if self.log_level == "DEBUG":
             logger_format = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <7}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"
@@ -52,3 +53,23 @@ class Logging:
             return -1
 
 
+def ignore_windows_close_loop_error():
+    from functools import wraps
+    from asyncio.proactor_events import _ProactorBasePipeTransport
+
+    def silence_event_loop_closed(func):
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            try:
+                return func(self, *args, **kwargs)
+            except RuntimeError as e:
+                if str(e) != 'Event loop is closed':
+                    raise
+
+        return wrapper
+
+    if platform.system() == 'Windows':
+        _ProactorBasePipeTransport.__del__ = silence_event_loop_closed(_ProactorBasePipeTransport.__del__)
+
+
+ignore_windows_close_loop_error()

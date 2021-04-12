@@ -36,15 +36,15 @@ class AiohttpDownloader(Downloader):
     def __init__(self):
         self.tc = None
 
-    async def init(self, setting):
-        if setting["HTTP_CLIENT_KWARGS"]:
-            self.session = aiohttp.ClientSession(**setting["HTTP_CLIENT_KWARGS"])
+    async def init(self, http_client_kwargs=None):
+        if http_client_kwargs:
+            self.session = aiohttp.ClientSession(**http_client_kwargs)
         else:
             jar = aiohttp.DummyCookieJar()
             self.tc = TCPConnector(limit=100, force_close=True, enable_cleanup_closed=True, verify_ssl=False)
             self.session = aiohttp.ClientSession(connector=self.tc, cookie_jar=jar)
 
-        return self.session
+        return self
 
     async def close(self):
         if self.tc:
@@ -54,9 +54,10 @@ class AiohttpDownloader(Downloader):
 
     async def get_session(self, request):
         """
-        优先使用request参数的session
-        client_kwargs不为空时，自己生成
-        默认使用全局session
+        1. 优先使用request参数的session
+        2. client_kwargs参数不为空，新建一个session
+        3. 全局session不为空，使用全局session
+        4. 新建一个session
         """
         if request.session:
             return request.session
@@ -64,8 +65,11 @@ class AiohttpDownloader(Downloader):
             # 单个请求创建的会话需要使用后关闭
             self.close_session = True
             return aiohttp.ClientSession(**request.client_kwargs)
-        else:
+        elif self.session:
             return self.session
+        else:
+            self.close_session = True
+            return aiohttp.ClientSession()
 
     @http_decorator
     async def fetch(self, request: Request) -> Response:
@@ -91,12 +95,12 @@ class HttpxDownloader(Downloader):
     """
     Httpx下载器
     """
-    async def init(self, setting):
-        if setting["HTTP_CLIENT_KWARGS"]:
-            self.session = httpx.AsyncClient(**setting["HTTP_CLIENT_KWARGS"])
+    async def init(self, http_client_kwargs=None):
+        if http_client_kwargs:
+            self.session = httpx.AsyncClient(**http_client_kwargs)
         else:
             self.session = httpx.AsyncClient(http2=True, verify=False)
-        return self.session
+        return self
 
     async def close(self):
         await self.session.aclose()
@@ -123,9 +127,10 @@ class HttpxDownloader(Downloader):
 
     async def get_session(self, request):
         """
-        优先使用request参数的session
-        client_kwargs不为空时，自己生成
-        默认使用全局session
+        1. 优先使用request参数的session
+        2. client_kwargs参数不为空，新建一个session
+        3. 全局session不为空，使用全局session
+        4. 新建一个session
         """
         if request.session:
             return request.session
@@ -133,7 +138,10 @@ class HttpxDownloader(Downloader):
             # 单个请求创建的会话需要使用后关闭
             self.close_session = True
             return httpx.AsyncClient(**request.client_kwargs)
-        else:
+        elif self.session:
             return self.session
+        else:
+            self.close_session = True
+            return httpx.AsyncClient()
 
 

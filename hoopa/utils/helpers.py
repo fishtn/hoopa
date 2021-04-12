@@ -41,10 +41,10 @@ def load_object(path):
     return obj
 
 
-async def get_cls(path, setting):
+async def get_cls(path, **kwargs):
     _cls = load_object(path)
     obj = _cls()
-    await obj.init(setting)
+    await obj.init(**kwargs)
     return obj
 
 
