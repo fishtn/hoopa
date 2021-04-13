@@ -12,7 +12,7 @@
 > 项目还在开发测试中，请勿用于生产环境
 
 
-文档地址：https://fishtn.github.io/hoopa
+文档地址：https://fishtn.github.io/hoopa/
 
 ## 环境要求：
 
