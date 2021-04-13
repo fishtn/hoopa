@@ -125,7 +125,8 @@ class Spider(BaseSpider, ABC):
     middlewares: list = None
     dupefilter_cls: bool = None
     clean_dupefilter: bool = None
-    dupefilter_setting: dict = None
+    stats_cls: str = None
+    dupefilter_setting: typing.Union[dict, str] = None
     redis_setting: typing.Union[dict, str] = None
     mq_uri: str = None
     mq_api_port: int = None
@@ -206,7 +207,7 @@ class Spider(BaseSpider, ABC):
         初始化start_urls, 添加到队列中去
         """
         try:
-            request_list = [Request(url=url, callback=self.parse, dont_filter=True) for url in self.start_urls]
+            request_list = [Request(url=url, callback=self.parse) for url in self.start_urls]
             counts = 0
             if request_list:
                 counts = await self.scheduler.add(request_list)
@@ -483,7 +484,7 @@ class Spider(BaseSpider, ABC):
         return spider_ins
 
     async def finish(self):
-        await self.scheduler.stats.max_value("finish_time", get_timestamp())
+        await self.scheduler.stats.max_value("finish_time", int(get_timestamp()))
         spider_stats = await self.stats.get_stats()
         await self.scheduler.close()
         await self.downloader.close()

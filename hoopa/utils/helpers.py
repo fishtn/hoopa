@@ -91,3 +91,38 @@ def to_bytes(bytes_or_str, encoding="utf-8", errors='strict'):
 def get_uuid():
     return str(uuid.uuid4())
 
+
+def get_continue_list(p_list):
+    # 去重排序
+    seq = sorted(list(set(p_list)))
+    result_seq = []
+    tmp = None
+    tmp_list = []
+    for i in seq:
+        if tmp is None:
+            tmp_list.append(i)
+        elif i - tmp == 1:
+            tmp_list.append(i)
+        else:
+            result_seq.append(tmp_list)
+            tmp_list = [i]
+
+        tmp = i
+    if tmp_list:
+        result_seq.append(tmp_list)
+    return result_seq
+
+
+def get_priority_list(p_list):
+    continue_list = get_continue_list(p_list)
+    priority_list = []
+
+    for item in continue_list:
+        priority_list.append((item[0], item[-1]))
+
+    return priority_list
+
+
+
+
+

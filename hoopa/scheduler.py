@@ -46,7 +46,7 @@ class Scheduler:
             await self.dupefilter.clean_queue()
 
         # 初始化爬虫开始时间
-        await self.stats.min_value("start_time", get_timestamp())
+        await self.stats.min_value("start_time", int(get_timestamp()))
 
         return self
 
@@ -55,8 +55,8 @@ class Scheduler:
         从队列中获取一个 request
         @param priority: 权重，取出对应权重的request，当队列为redis时生效
         """
-        if priority and not isinstance(priority, int):
-            raise TypeError(f"queue_priority must be int, not {type(priority)}")
+        if priority and not isinstance(priority, (int, list)):
+            raise TypeError(f"queue_priority must be int or list, not {type(priority)}")
 
         request = await self.scheduler_queue.get(priority)
 

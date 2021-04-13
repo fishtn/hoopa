@@ -16,7 +16,7 @@ from aio_pika import IncomingMessage
 from hoopa.request import Request
 from hoopa.response import Response
 from hoopa.utils.connection import get_aio_redis
-from hoopa.utils.helpers import get_timestamp
+from hoopa.utils.helpers import get_timestamp, get_priority_list
 from hoopa.utils.rabbitmq_pool import RabbitMqPool
 from hoopa.utils.serialization import serialize_request_and_response
 
@@ -197,12 +197,19 @@ class RedisQueue(BaseQueue):
             await conn.delete(self._pending_key)
             await conn.delete(self._waiting_key)
 
-    async def get(self, priority):
-        _max = "+inf"
-        _min = "-inf"
-        if priority is not None:
-            _max = priority
-            _min = priority
+    async def get(self, priority: typing.Union[int, list]):
+        """
+        从redis中获取request
+        @param priority: 为None的时候，获取所有权重，否则获取指定的权重，可以是int，也可以是int列表
+        @return: request
+        """
+        priority_list = []
+        if priority is None:
+            priority_list.append(("-inf", "+inf"))
+        elif isinstance(priority, int):
+            priority_list.append((priority, priority))
+        else:
+            priority_list = get_priority_list(priority)
 
         try:
             lua = """
@@ -222,12 +229,12 @@ class RedisQueue(BaseQueue):
                 end
                 return nil
             """
-            result = None
             with await self.pool as conn:
-                eval_result = await conn.eval(lua, keys=[self._waiting_key, self._pending_key, _min, _max], args=[])
-                if eval_result:
-                    result = Request.unserialize(eval_result, self.module)
-            return result
+                for p_item in priority_list:
+                    _min, _max  = p_item
+                    eval_result = await conn.eval(lua, keys=[self._waiting_key, self._pending_key, _min, _max], args=[])
+                    if eval_result:
+                        return Request.unserialize(eval_result, self.module)
 
         except Exception as e:
             logger.error(f"get request error \n{traceback.format_exc()}")

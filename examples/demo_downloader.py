@@ -9,10 +9,12 @@ class DataItem(hoopa.Item):
     type: str
 
 
-class DemoSpider(hoopa.Spider):
-    name = "demo"
+class DownloaderDemoSpider(hoopa.Spider):
+    name = "downloader_demo"
     start_urls = ["http://httpbin.org/json"]
-    downloader_cls = const.AiohttpDownloader
+    # 默认为aiohttp，可修改为httpx
+    # downloader_cls = const.AiohttpDownloader
+    downloader_cls = const.HttpxDownloader
 
     async def parse(self, request, response):
         data = response.json()
@@ -29,4 +31,4 @@ class DemoSpider(hoopa.Spider):
 
 
 if __name__ == "__main__":
-    DemoSpider.start()
+    DownloaderDemoSpider.start()

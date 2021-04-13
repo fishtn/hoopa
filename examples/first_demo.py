@@ -3,7 +3,7 @@ import hoopa
 
 
 class FirstSpider(hoopa.Spider):
-    name = "demo"
+    name = "first"
     start_urls = ["https://httpbin.org/get"]
 
     async def parse(self, request, response):

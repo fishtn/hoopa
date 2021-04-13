@@ -76,8 +76,10 @@ class Setting:
         # 去重default配置
         if self.get("QUEUE_CLS") == const.RedisQueue:
             self.set("DUPEFILTER_CLS", const.RedisDupeFilter, "default")
+            self.set("STATS_CLS", const.RedisStatsCollector, "default")
         else:
             self.set("DUPEFILTER_CLS", const.MemoryDupeFilter, "default")
+            self.set("STATS_CLS", const.MemoryStatsCollector, "default")
 
         self.set("DUPEFILTER_SETTING", self.get("REDIS_SETTING"), "default")
         self.set("CLEAN_DUPEFILTER", self.get("CLEAN_QUEUE"), "default")

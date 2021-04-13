@@ -19,8 +19,12 @@ class ${spider_class_name}(Spider):
     async def start_requests(self):
         pass
 
-    def parse(self, request, response):
+    async def parse(self, request, response):
         print(response)
+
+    async def process_item(self, item_list: list):
+        for item in item_list:
+            print(item)
 
 
 middleware = Middleware()

@@ -116,8 +116,8 @@ class AiohttpClient:
 
 class HttpxRequest:
     """
-        * method - HTTP method for the new `Request` object: `GET`, `OPTIONS`,
-        `HEAD`, `POST`, `PUT`, `PATCH`, or `DELETE`.
+        * method - HTTP method for the new `Request` object: `GET`, `OPTIONS`, `HEAD`, `POST`, `PUT`, `PATCH`,
+        or `DELETE`.
         * url - URL for the new `Request` object.
         * params - *(optional)* Query parameters to include in the URL, as a
         string, dictionary, or sequence of two-tuples.
@@ -135,22 +135,9 @@ class HttpxRequest:
         request.
         * auth - *(optional)* An authentication class to use when sending the
         request.
-        * proxies - *(optional)* A dictionary mapping proxy keys to proxy URLs.
-        * timeout - *(optional)* The timeout configuration to use when sending
         the request.
         * allow_redirects - *(optional)* Enables or disables HTTP redirects.
-        * verify - *(optional)* SSL certificates (a.k.a CA bundle) used to
-        verify the identity of requested hosts. Either `True` (default CA bundle),
-        a path to an SSL certificate file, or `False` (disable verification).
-        * cert - *(optional)* An SSL certificate used by the requested host
-        to authenticate the client. Either a path to an SSL certificate file, or
-        two-tuple of (certificate file, key file), or a three-tuple of (certificate
-        file, key file, password).
-        * trust_env - *(optional)* Enables or disables usage of environment
-        variables for configuration.
     """
-    
-    method = "method"
     url = "url"
     params = "params"
     content = "content"
@@ -160,12 +147,8 @@ class HttpxRequest:
     headers = "headers"
     cookies = "cookies"
     auth = "auth"
-    proxies = "proxies"
-    timeout = "timeout"
     allow_redirects = "allow_redirects"
-    verify = "verify"
-    cert = "cert"
-    trust_env = "trust_env"
+    timeout = "timeout"
 
 
 class HttpxClient:

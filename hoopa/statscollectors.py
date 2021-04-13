@@ -85,7 +85,7 @@ class RedisStatsCollector(StatsCollector):
 
     async def init(self, setting):
         redis_setting = setting["REDIS_SETTING"]
-        self.stats_key = f"{setting['NAME']}:stats"
+        self.stats_key = f"{setting['NAME']}:Stats"
         self.pool = await get_aio_redis(redis_setting)
 
     async def get_value(self, key, default=None, spider=None):
