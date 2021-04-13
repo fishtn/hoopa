@@ -1,0 +1,33 @@
+site_name: HOOPA
+
+repo_url: https://github.com/fishtn/hoopa
+repo_name: 'fishtn/hoopa'
+
+theme:
+  name: material
+
+nav:
+  - 简介: index.md
+  - 入门:
+      - 1. 概览: ./Started/1.overview.md
+      - 2. 安装: ./Started/2.installation.md
+      - 3. 开始: ./Started/3.start.md
+  - 基础概念:
+      - 1. Request: ./basicConcepts/1.request.md
+      - 2. Response: ./basicConcepts/2.response.md
+      - 3. Downloader: ./basicConcepts/3.downloader.md
+      - 4. Item: ./basicConcepts/4.item.md
+      - 5. Spider: ./basicConcepts/5.spider.md
+      - 6. Middleware: ./basicConcepts/6.middleware.md
+      - 7. Queue: ./basicConcepts/7.queue.md
+  - 其他:
+      - 信息收集: ./other/stats.md
+      - 去重: ./other/dupefilters.md
+      - 配置文件: ./other/config.md
+      - 框架的由来: ./other/other.md
+
+plugins:
+  - search
+
+extra_css:
+  - css/extra.css
