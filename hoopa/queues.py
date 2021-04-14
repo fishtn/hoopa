@@ -2,6 +2,7 @@
 """
 爬虫队列
 """
+import asyncio
 import importlib
 import time
 import traceback
@@ -10,13 +11,14 @@ from asyncio import PriorityQueue
 from urllib.parse import urlparse, quote_plus
 
 import aiohttp
+import ujson
 from loguru import logger
 from aio_pika import IncomingMessage
 
 from hoopa.request import Request
 from hoopa.response import Response
 from hoopa.utils.connection import get_aio_redis
-from hoopa.utils.helpers import get_timestamp, get_priority_list
+from hoopa.utils.helpers import get_timestamp, get_priority_list, get_mac_pid
 from hoopa.utils.rabbitmq_pool import RabbitMqPool
 from hoopa.utils.serialization import serialize_request_and_response
 
@@ -173,6 +175,11 @@ class RedisQueue(BaseQueue):
         self.module = None
         self._setting = None
 
+        # 统计信息
+        self.task_count = 0
+        self.task_success = 0
+        self.task_failure = 0
+
     async def init(self, setting):
         """
         初始化db
@@ -182,10 +189,21 @@ class RedisQueue(BaseQueue):
         self._failure_key = f"{self._spider_name}:failure"
         self._pending_key = f"{self._spider_name}:pending"
         self._waiting_key = f"{self._spider_name}:waiting"
+        self._waiting_key = f"{self._spider_name}:waiting"
+        mac_pid_key = f"{self._spider_name}:client:{get_mac_pid()}"
 
         self.module = importlib.import_module(setting.SERIALIZATION)
 
         self.pool = await get_aio_redis(setting["REDIS_SETTING"])
+        loop = asyncio.get_running_loop()
+        asyncio.run_coroutine_threadsafe(self.set_heart_beat(mac_pid_key), loop=loop)
+
+    async def set_heart_beat(self, mac_pid_key):
+        while True:
+            with await self.pool as conn:
+                data = {"T": self.task_count, "S": self.task_success, "F": self.task_failure}
+                await conn.set(mac_pid_key, ujson.dumps(data), expire=10)
+            await asyncio.sleep(10)
 
     async def clean_queue(self):
         """
@@ -234,8 +252,8 @@ class RedisQueue(BaseQueue):
                     _min, _max  = p_item
                     eval_result = await conn.eval(lua, keys=[self._waiting_key, self._pending_key, _min, _max], args=[])
                     if eval_result:
+                        self.task_count += 1
                         return Request.unserialize(eval_result, self.module)
-
         except Exception as e:
             logger.error(f"get request error \n{traceback.format_exc()}")
 
@@ -294,6 +312,7 @@ class RedisQueue(BaseQueue):
             if response.ok == 1:
                 # 成功，删除pending队列
                 await conn.hdel(self._pending_key, request_ser)
+                self.task_success += 1
             else:
                 failure_response = serialize_request_and_response(task_request, response)
                 # 失败, 从等待队列中删除，并放到失败队列
@@ -301,6 +320,7 @@ class RedisQueue(BaseQueue):
                 pipe.hdel(self._pending_key, request_ser)
                 pipe.hset(self._failure_key, request_ser, failure_response)
                 await pipe.execute()
+                self.task_failure += 1
 
     async def check_status(self, spider_ins, run_forever=False):
         with await self.pool as conn:
