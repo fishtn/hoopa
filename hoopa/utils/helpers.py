@@ -1,6 +1,7 @@
 # encoding: utf-8
 import asyncio
 import hashlib
+import os
 import random
 import uuid
 from importlib import import_module
@@ -123,6 +124,17 @@ def get_priority_list(p_list):
     return priority_list
 
 
+def get_mac_address():
+    node = uuid.getnode()
+    mac = uuid.UUID(int=node).hex[-12:]
+    return mac
 
 
+def get_pid():
+    return os.getpid()
 
+
+def get_mac_pid():
+    mac = get_mac_address()
+    pid = get_pid()
+    return f"{mac}#{pid}"

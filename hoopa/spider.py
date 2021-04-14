@@ -229,7 +229,7 @@ class Spider(BaseSpider, ABC):
                 item_md5 = get_md5(item_str_json)
 
                 with await self.scheduler.scheduler_queue.pool as conn:
-                    result = await conn.hmset(f"{self.name}:{item.class_name}", item_md5, item_str_json)
+                    result = await conn.hmset(f"{self.name}:{item.name}", item_md5, item_str_json)
 
                 if result:
                     logger.info(f"{item.__dict__}")
@@ -248,18 +248,24 @@ class Spider(BaseSpider, ABC):
         item_stats = {}
         request_stats = {}
 
-        async for callback_result in callback_results:
-            if isinstance(callback_result, Request):
-                key = callback_result.priority
-                item_stats[key] = item_stats.get(key, 1) + 1
-                request_list.append(callback_result)
-            elif isinstance(callback_result, Item):
-                key = callback_result.class_name
-                item_stats[key] = item_stats.get(key, 1) + 1
-                item_list.append(callback_result)
-            else:
-                callback_result_name = type(callback_result).__name__
-                raise InvalidCallbackResult(f"<Parse invalid callback result type: {callback_result_name}>")
+        try:
+            async for callback_result in callback_results:
+                if isinstance(callback_result, Request):
+                    key = callback_result.priority
+                    item_stats[key] = item_stats.get(key, 1) + 1
+                    request_list.append(callback_result)
+                elif isinstance(callback_result, Item):
+                    key = callback_result.name
+                    item_stats[key] = item_stats.get(key, 1) + 1
+                    item_list.append(callback_result)
+                else:
+                    callback_result_name = type(callback_result).__name__
+                    raise InvalidCallbackResult(f"<Parse invalid callback result type: {callback_result_name}>")
+        except Exception as e:
+            response.ok = 0
+            response.error_type = e.__class__.__name__
+            response.debug_msg = traceback.format_exc(self.logging.get_tb_limit())
+            logger.error(f"{request} {response} process_async_callback \n{response.debug_msg}")
 
         try:
             # 处理新请求, 默认100个请求批量存储
