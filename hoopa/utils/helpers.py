@@ -70,7 +70,7 @@ async def spider_sleep(download_delay):
     else:
         download_delay = download_delay
 
-    await asyncio.sleep(download_delay)
+    await asyncio.sleep(max(download_delay, 0.01))
 
 
 def to_str(bytes_or_str, encoding="utf-8", errors='strict'):
