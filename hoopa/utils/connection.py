@@ -13,7 +13,7 @@ def get_redis_uri_from_dict(**kwargs):
     port = kwargs.pop('port', None)
     db = kwargs.pop('db', None)
     password = kwargs.pop('password', None)
-    encoding = kwargs.pop('encoding', None)
+    encoding = kwargs.pop('encoding', "utf-8")
 
     if password:
         uri = f"redis://:{password}@{host}:{port}/{db}?encoding={encoding}"
