@@ -1,13 +1,6 @@
 import os, sys
 import re
 
-try:
-    import uvloop
-    import asyncio
-    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-except ImportError:
-    pass
-
 
 sys.path.insert(0, re.sub(r"([\\/]items)|([\\/]spiders)", "", os.getcwd()))
 

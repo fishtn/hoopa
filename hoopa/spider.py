@@ -33,6 +33,13 @@ from hoopa.utils.project import get_project_settings, Setting
 from hoopa.utils import decorators
 from hoopa.utils.url import get_location_from_history
 
+try:
+    import uvloop
+    import asyncio
+    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+except ImportError:
+    pass
+
 
 class BaseSpider:
     """
@@ -231,7 +238,6 @@ class Spider(BaseSpider, ABC):
                 logger.info(f"{item.__dict__}")
 
     async def _process_async_callback(self, request: Request, response: Response, callback_results: AsyncGeneratorType):
-        # if not callback_results or isinstance(callback_results, CoroutineType):
         if not callback_results or response.ok != 1:
             return
 
@@ -476,7 +482,6 @@ class Spider(BaseSpider, ABC):
         @rtype: object
         """
         loop = loop or asyncio.get_event_loop()
-        print(loop)
         spider_ins = cls(middleware=middleware, loop=loop)
         loop.run_until_complete(spider_ins._start(before_start, after_stop))
         spider_ins.loop.run_until_complete(spider_ins.loop.shutdown_asyncgens())
