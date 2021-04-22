@@ -43,6 +43,7 @@ requires = [
     "w3lib",
     "loguru",
     "ujson",
+    "lxml",
 ]
 
 

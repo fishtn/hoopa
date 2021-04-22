@@ -75,6 +75,8 @@ class Scheduler:
 
         # 判断url是否合法
         for item in requests:
+            if item is None:
+                raise InvalidUrl(f"Invalid url: {item} url is None ")
             if not is_url(item.url):
                 raise InvalidUrl(f"Invalid url: {item.url} ")
 

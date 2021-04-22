@@ -16,7 +16,7 @@ class DownloaderDemoSpider(hoopa.Spider):
     # downloader_cls = const.AiohttpDownloader
     downloader_cls = const.HttpxDownloader
 
-    async def parse(self, request, response):
+    def parse(self, request, response):
         data = response.json()
         slides = data["slideshow"]["slides"]
         for slide in slides:
