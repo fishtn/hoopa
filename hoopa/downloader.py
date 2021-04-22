@@ -5,6 +5,7 @@
 
 import aiohttp
 import httpx
+import requests
 from aiohttp import TCPConnector
 
 from hoopa.utils.decorators import http_decorator
@@ -145,3 +146,63 @@ class HttpxDownloader(Downloader):
             return httpx.AsyncClient()
 
 
+class RequestsDownloader(Downloader):
+    """
+    Requests下载器
+    """
+    def init(self, http_client_kwargs):
+        if http_client_kwargs:
+            self.session = self.create_session(self.session, **http_client_kwargs)
+        else:
+            self.session = self.create_session()
+        return self
+
+    def close(self):
+        self.session.close()
+
+    @http_decorator
+    def fetch(self, request: Request) -> Response:
+        session = self.get_session(request)
+        _kwargs = request.replace_to_kwargs
+
+        try:
+            resp = self.session.request(**_kwargs)
+            response = Response(
+                url=str(resp.url),
+                _body=resp.content,
+                status=resp.status_code,
+                cookies=resp.cookies,
+                headers=resp.headers,
+                history=resp.history
+            )
+            return response
+        finally:
+            if self.close_session:
+                session.close()
+
+    def get_session(self, request):
+        """
+        1. 优先使用request参数的session
+        2. client_kwargs参数不为空，新建一个session
+        3. 全局session不为空，使用全局session
+        4. 新建一个session
+        """
+        if request.session:
+            return request.session
+        elif request.client_kwargs:
+            # 单个请求创建的会话需要使用后关闭
+            self.close_session = True
+            session = self.create_session(**request.client_kwargs)
+            return session
+        elif self.session:
+            return self.session
+        else:
+            return self.create_session()
+
+    def create_session(self, session=None, **kwargs):
+        if session is None:
+            session = requests.Session()
+        for key, value in kwargs.items():
+            if hasattr(session, key):
+                setattr(session, key, value)
+        return session

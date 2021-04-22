@@ -7,7 +7,6 @@ import operator
 import traceback
 import weakref
 from abc import ABC
-from asyncio import iscoroutinefunction
 from functools import reduce
 from inspect import isawaitable
 import typing
@@ -17,12 +16,12 @@ from types import AsyncGeneratorType, CoroutineType
 import ujson
 from loguru import logger
 
-from hoopa.downloader import Downloader
 from hoopa.middlewares.stats import downloader_stats
 from hoopa.settings import const
+from hoopa.utils.concurrency import run_function
 from hoopa.utils.log import Logging
 from hoopa.utils.asynciter import AsyncIter
-from hoopa.utils.helpers import spider_sleep, get_md5, split_list, get_uuid, get_timestamp, get_cls
+from hoopa.utils.helpers import spider_sleep, get_md5, split_list, get_uuid, get_timestamp, get_cls, cls_close
 from hoopa.exceptions import InvalidCallbackResult, SpiderHookError
 from hoopa.middleware import Middleware
 from hoopa.item import Item
@@ -58,12 +57,6 @@ class BaseSpider:
                     await aws_hook_func
             except Exception as e:
                 raise SpiderHookError(f"<Hook {hook_func.__name__}: {e}")
-
-    async def start_requests(self):
-        """
-        用于
-        """
-        pass
 
     async def process_response(self, request, response):
         """
@@ -167,7 +160,7 @@ class Spider(BaseSpider, ABC):
         # 初始化 download
         downloader_cls = self.setting["DOWNLOADER_CLS"]
         http_client_kwargs = self.setting["HTTP_CLIENT_KWARGS"]
-        self.downloader: Downloader = await get_cls(downloader_cls, http_client_kwargs=http_client_kwargs)
+        self.downloader = await get_cls(downloader_cls, http_client_kwargs=http_client_kwargs)
 
         # 初始化 scheduler
         await self.scheduler.init(self.setting)
@@ -175,40 +168,8 @@ class Spider(BaseSpider, ABC):
         # 初始化stats
         self.stats = self.scheduler.stats
 
-        # 初始化开始的urls
-        await self._process_start_urls()
         # 处理start_requests
         await self._handle_start_requests()
-
-    async def _handle_start_requests(self):
-        process_func = getattr(self, "start_requests", None)
-
-        if iscoroutinefunction(process_func):
-            process_result = await process_func()
-            callback_results = process_result
-        else:
-            callback_results = process_func()
-
-        if callback_results and not isinstance(callback_results, CoroutineType):
-            async for callback_result in callback_results:
-                if isinstance(callback_result, Request):
-                    count = await self.scheduler.add(callback_result)
-                    logger.debug(f"start_requests push request {count}")
-
-    async def _process_start_urls(self):
-        """
-        初始化start_urls, 添加到队列中去
-        """
-        try:
-            request_list = [Request(url=url, callback=self.parse) for url in self.start_urls]
-            counts = 0
-            if request_list:
-                counts = await self.scheduler.add(request_list)
-            logger.info(f"init start urls end, set {counts}")
-        except Exception as e:
-            # 初始化start_urls失败
-            debug_msg = traceback.format_exc(self.logging.get_tb_limit())
-            logger.error(f"init start urls error \n{debug_msg}")
 
     async def process_item(self, item_list: list):
         """
@@ -231,7 +192,6 @@ class Spider(BaseSpider, ABC):
                 logger.info(f"{item.__dict__}")
 
     async def _process_async_callback(self, request: Request, response: Response, callback_results: AsyncGeneratorType):
-        # if not callback_results or isinstance(callback_results, CoroutineType):
         if not callback_results or response.ok != 1:
             return
 
@@ -241,15 +201,18 @@ class Spider(BaseSpider, ABC):
         item_stats = {}
         request_stats = {}
 
+        if isinstance(callback_results, typing.Generator):
+            callback_results = AsyncIter(callback_results)
+
         try:
             async for callback_result in callback_results:
                 if isinstance(callback_result, Request):
                     key = callback_result.priority
-                    item_stats[key] = item_stats.get(key, 1) + 1
+                    item_stats[key] = item_stats.get(key, 0) + 1
                     request_list.append(callback_result)
                 elif isinstance(callback_result, Item):
                     key = callback_result.name
-                    item_stats[key] = item_stats.get(key, 1) + 1
+                    item_stats[key] = item_stats.get(key, 0) + 1
                     item_list.append(callback_result)
                 else:
                     callback_result_name = type(callback_result).__name__
@@ -269,7 +232,7 @@ class Spider(BaseSpider, ABC):
 
             # 处理item
             if item_list:
-                await self.process_item(item_list)
+                await run_function(self.process_item, item_list)
 
             # 统计item
             for k, v in item_stats.items():
@@ -294,11 +257,7 @@ class Spider(BaseSpider, ABC):
 
         try:
             if process_func is not None:
-                if iscoroutinefunction(process_func):
-                    process_result = await process_func(request, response)
-                    return process_result
-                else:
-                    return process_func(request, response)
+                return await run_function(process_func, request, response)
             else:
                 raise Exception(f"<Parse invalid callback result type: {request.callback}>")
         except Exception as e:
@@ -312,20 +271,16 @@ class Spider(BaseSpider, ABC):
             for middleware in self.middleware.request_middleware:
                 if callable(middleware):
                     try:
-                        aws_middleware_func = middleware(self, request)
-                        if isawaitable(aws_middleware_func):
-                            response = await aws_middleware_func
-                            if response is not None and not isinstance(response, (Response, Request)):
-                                raise Exception(f"<Middleware {middleware.__name__}: must return None, Response or Request")
-                            if response:
-                                return response
-                        else:
-                            logger.error(f"<Middleware {middleware.__name__}: must be a coroutine function")
+                        response = await run_function(middleware, self, request)
+                        if response is not None and not isinstance(response, (Response, Request)):
+                            raise Exception(f"<Middleware {middleware.__name__}: must return None, Response or Request")
+                        if response:
+                            return response
                     except Exception as e:
-                        logger.error(f"<Middleware {middleware.__name__}: {e}")
+                        logger.error(f"<Middleware {middleware.__name__}: {traceback.format_exc()}>")
 
         # 执行完request_middleware，调用下载器
-        response = await self.downloader.fetch(request)
+        response = await run_function(self.downloader.fetch, request)
         if response.ok == 1:
             if response.history:
                 last_url = get_location_from_history(response.history)
@@ -346,20 +301,17 @@ class Spider(BaseSpider, ABC):
         for middleware in self.middleware.response_middleware:
             if callable(middleware):
                 try:
-                    aws_middleware_func = middleware(self, request, response)
-                    if isawaitable(aws_middleware_func):
-                        middleware_response = await aws_middleware_func
-                        if middleware_response is not None and not isinstance(middleware_response, (Response, Request)):
-                            raise Exception(f"<Middleware {middleware.__name__}: must return None, Response or Request")
+                    middleware_response = await run_function(middleware, self, request, response)
+                    if middleware_response is not None and not isinstance(middleware_response, (Response, Request)):
+                        raise Exception(f"<Middleware {middleware.__name__}: must return None, Response or Request")
 
-                        if isinstance(middleware_response, Request):
-                            return AsyncIter([middleware_response])
+                    if isinstance(middleware_response, Request):
+                        return AsyncIter([middleware_response])
 
-                        if isinstance(middleware_response, Response):
-                            response = middleware_response
-                            break
-                    else:
-                        logger.error(f"<Middleware {middleware.__name__}: must be a coroutine function")
+                    if isinstance(middleware_response, Response):
+                        response = middleware_response
+                        break
+
                 except Exception as e:
                     logger.error(f"<Middleware {middleware.__name__}: {e}")
 
@@ -399,6 +351,28 @@ class Spider(BaseSpider, ABC):
         except Exception as e:
             debug_msg = traceback.format_exc(self.logging.get_tb_limit())
             logger.error(f"{request} callback error \n{debug_msg}")
+
+    async def start_requests(self):
+        """
+        用于初始化url，默认读取start_urls, 可重写
+        """
+        for url in self.start_urls:
+            yield Request(url=url, callback=self.parse)
+
+    async def _handle_start_requests(self):
+        """
+        用于初始化url，默认读取start_urls, 可重写
+        """
+        callback_results = await run_function(self.start_requests)
+
+        if isinstance(callback_results, typing.Generator):
+            callback_results = AsyncIter(callback_results)
+
+        if callback_results and not isinstance(callback_results, CoroutineType):
+            async for callback_result in callback_results:
+                if isinstance(callback_result, Request):
+                    count = await self.scheduler.add(callback_result)
+                    logger.debug(f"start_requests push request {count}")
 
     async def _start_spider(self):
         """
@@ -457,10 +431,16 @@ class Spider(BaseSpider, ABC):
             logger.info("Spider finished!")
 
     @classmethod
-    async def async_start(cls, middleware: typing.Union[typing.Iterable, Middleware] = None, loop=None):
+    async def async_start(
+            cls,
+            middleware: typing.Union[typing.Iterable, Middleware] = None,
+            loop=None,
+            before_start=None,
+            after_stop=None,
+    ):
         loop = loop or asyncio.get_event_loop()
         spider_ins = cls(middleware=middleware, loop=loop)
-        await spider_ins._start()
+        await spider_ins._start(before_start, after_stop)
         return spider_ins
 
     @classmethod
@@ -476,7 +456,6 @@ class Spider(BaseSpider, ABC):
         @rtype: object
         """
         loop = loop or asyncio.get_event_loop()
-        print(loop)
         spider_ins = cls(middleware=middleware, loop=loop)
         loop.run_until_complete(spider_ins._start(before_start, after_stop))
         spider_ins.loop.run_until_complete(spider_ins.loop.shutdown_asyncgens())
@@ -487,7 +466,8 @@ class Spider(BaseSpider, ABC):
         await self.scheduler.stats.max_value("finish_time", int(get_timestamp()))
         spider_stats = await self.stats.get_stats()
         await self.scheduler.close()
-        await self.downloader.close()
+        await cls_close(self.downloader)
+
         spider_stats_sorted_keys = sorted(spider_stats.items(), key=operator.itemgetter(0))
         blank = " " * 4
         body = "stats\n"

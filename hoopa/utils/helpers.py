@@ -4,6 +4,7 @@ import hashlib
 import os
 import random
 import uuid
+from asyncio import iscoroutinefunction
 from importlib import import_module
 
 import arrow
@@ -45,8 +46,19 @@ def load_object(path):
 async def get_cls(path, **kwargs):
     _cls = load_object(path)
     obj = _cls()
-    await obj.init(**kwargs)
+    if iscoroutinefunction(obj.init):
+        await obj.init(**kwargs)
+    else:
+        obj.init(**kwargs)
+
     return obj
+
+
+async def cls_close(func):
+    if iscoroutinefunction(func.close):
+        await func.close()
+    else:
+        func.close()
 
 
 def request_fingerprint(request):

@@ -11,9 +11,9 @@ from http.cookies import SimpleCookie
 import cchardet
 import ujson
 from aiohttp import helpers
-from httpx import Headers, Cookies
-from multidict import CIMultiDictProxy
+from httpx import Cookies
 from parsel import Selector
+from requests.cookies import RequestsCookieJar
 
 from hoopa.utils.url import get_location_from_history
 
@@ -23,8 +23,8 @@ class Response:
     url: str = None
     _body: bytes = b''
     status: int = -1
-    headers: typing.Union[CIMultiDictProxy[str], Headers] = None
-    cookies: typing.Union[SimpleCookie, Cookies] = None
+    headers: typing.Union[typing.Any] = None
+    cookies: typing.Union[SimpleCookie, Cookies, RequestsCookieJar, typing.Any] = None
     history: typing.Union[list, tuple] = None
     encoding: str = None
 
