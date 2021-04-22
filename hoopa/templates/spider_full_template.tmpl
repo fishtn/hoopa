@@ -11,18 +11,14 @@ class DataItem(Item):
 
 class ${spider_class_name}(Spider):
     name = "${spider_name}"
-    start_urls = []
 
-    async def init(self):
+    def start_requests(self):
         pass
 
-    async def start_requests(self):
-        pass
-
-    async def parse(self, request, response):
+    def parse(self, request, response):
         print(response)
 
-    async def process_item(self, item_list: list):
+    def process_item(self, item_list: list):
         for item in item_list:
             print(item)
 
@@ -31,12 +27,12 @@ middleware = Middleware()
 
 
 @middleware.request
-async def set_request_middleware(spider_ins, request):
+def set_request_middleware(spider_ins, request):
     pass
 
 
 @middleware.response
-async def set_response_middleware(spider_ins, request, response):
+def set_response_middleware(spider_ins, request, response):
     pass
 
 
