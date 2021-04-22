@@ -36,6 +36,7 @@ requires = [
     "httpx[http2]>=0.17.0",
     "aioredis>=1.3.1",
     "aio_pika>=6.8.0",
+    "requests",
     "parsel",
     "aiodns",
     "cchardet",
