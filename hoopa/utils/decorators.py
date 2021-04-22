@@ -20,7 +20,10 @@ def http_decorator(func):
     async def log(http_ins, request: Request):
         response: Response = Response()
         try:
-            response = await func(http_ins, request)
+            if iscoroutinefunction(func):
+                response = await func(http_ins, request)
+            else:
+                response = func(http_ins, request)
             return response
         except Exception as e:
             response.ok = 0
