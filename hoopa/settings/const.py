@@ -4,6 +4,7 @@ import json
 
 AiohttpDownloader = "hoopa.downloader.AiohttpDownloader"
 HttpxDownloader = "hoopa.downloader.HttpxDownloader"
+RequestsDownloader = "hoopa.downloader.RequestsDownloader"
 
 # SchedulerQueue:
 RedisQueue = "hoopa.queues.RedisQueue"

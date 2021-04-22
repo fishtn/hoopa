@@ -6,7 +6,7 @@
 **hoopa** 是一个轻量、快速的异步分布式爬虫框架
 
 - 支持基于内存、redis、rabbitmq的优先级队列
-- 支持aiohttp、httpx
+- 支持aiohttp, httpx, requests等下载器
 - 支持断点续传
 
 > 项目还在开发测试中，请勿用于生产环境
@@ -47,7 +47,7 @@ class FirstSpider(hoopa.Spider):
     name = "first"
     start_urls = ["http://httpbin.org/get"]
 
-    async def parse(self, request, response):
+    def parse(self, request, response):
         print(response)
 
 
