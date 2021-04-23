@@ -9,11 +9,20 @@ class DataItem(Item):
     pass
 
 
+class CommonMiddleware:
+    def process_request(self, request, spider_ins):
+        request.timeout = 10
+
+    def process_response(self, request, response, spider_ins):
+        request.timeout = 10
+
+
 class ${spider_class_name}(Spider):
     name = "${spider_name}"
+    middlewares = [CommonMiddleware]
 
     def start_requests(self):
-        pass
+        yield hoopa.Request(url="", callback=self.parse)
 
     def parse(self, request, response):
         print(response)
@@ -23,19 +32,6 @@ class ${spider_class_name}(Spider):
             print(item)
 
 
-middleware = Middleware()
-
-
-@middleware.request
-def set_request_middleware(spider_ins, request):
-    pass
-
-
-@middleware.response
-def set_response_middleware(spider_ins, request, response):
-    pass
-
 
 if __name__ == "__main__":
-    middleware_list = [middleware]
-    ${spider_class_name}.start(middleware=middleware_list)
+    ${spider_class_name}.start()

@@ -24,7 +24,6 @@ nav:
       - 信息收集: ./other/stats.md
       - 去重: ./other/dupefilters.md
       - 配置文件: ./other/config.md
-      - 框架的由来: ./other/other.md
 
 plugins:
   - search

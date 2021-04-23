@@ -11,6 +11,7 @@ from loguru import logger
 import traceback
 
 from .helpers import spider_sleep
+from .url import get_location_from_history
 from ..request import Request
 from ..response import Response
 
@@ -31,12 +32,19 @@ def http_decorator(func):
             response.debug_msg = traceback.format_exc()
             logger.error(f"{request} fetch error \n {response.debug_msg}")
 
+        if response.ok == 1:
+            if response.history:
+                last_url = get_location_from_history(response.history)
+                logger.debug(f"{request} redirect <{last_url}> success")
+            else:
+                logger.debug(f"{request} fetch {response}")
+
         return response
 
     return log
 
 
-def handle_request_retry():
+def handle_download_callback_retry():
     def retry(func):
         @wraps(func)
         async def wrapper(self, request: Request):

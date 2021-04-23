@@ -4,12 +4,17 @@ import hoopa
 from hoopa.settings import const
 
 
-class DownloaderDemoSpider(hoopa.Spider):
-    name = "downloader_demo"
+class QueuesDemoSpider(hoopa.Spider):
+    name = "queues_demo"
     start_urls = ["http://httpbin.org/json"]
-    downloader_cls = const.HttpxDownloader
-    # downloader_cls = const.RequestsDownloader
-    # downloader_cls = const.AiohttpDownloader
+
+    # 默认为MemoryQueue
+    # queue_cls = const.MemoryQueue
+
+    # 设置队列为redis
+    queue_cls = const.RedisQueue
+
+    redis_setting = "redis://127.0.0.1:6379/0?encoding=utf-8"
 
     def parse(self, request, response):
         data = response.json()
@@ -26,4 +31,4 @@ class DownloaderDemoSpider(hoopa.Spider):
 
 
 if __name__ == "__main__":
-    DownloaderDemoSpider.start()
+    QueuesDemoSpider.start()

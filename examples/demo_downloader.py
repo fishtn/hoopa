@@ -4,13 +4,13 @@ import hoopa
 from hoopa.settings import const
 
 
-class RedisDemoSpider(hoopa.Spider):
-    name = "redis_demo"
+class DownloaderDemoSpider(hoopa.Spider):
+    name = "downloader_demo"
     start_urls = ["http://httpbin.org/json"]
-
-    # 设置队列为redis
-    queue_cls = const.RedisQueue
-    redis_setting = "redis://127.0.0.1:6379/0?encoding=utf-8"
+    # 默认为aiohttp，可修改为httpx
+    downloader_cls = const.RequestsDownloader
+    # downloader_cls = const.HttpxDownloader
+    log_level = "debug"
 
     def parse(self, request, response):
         data = response.json()
@@ -21,6 +21,10 @@ class RedisDemoSpider(hoopa.Spider):
             data_item.type = slide["type"]
             yield data_item
 
+    def process_item(self, item_list: list):
+        for item in item_list:
+            print(item)
+
 
 if __name__ == "__main__":
-    RedisDemoSpider.start()
+    DownloaderDemoSpider.start()

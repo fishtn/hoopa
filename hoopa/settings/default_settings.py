@@ -1,5 +1,6 @@
 # encoding: utf-8
 from hoopa import const
+from hoopa.middlewares.stats import StatsMiddleware
 
 NAME = "hoopa"
 
@@ -25,7 +26,9 @@ DOWNLOADER_CLS = const.AiohttpDownloader
 HTTP_CLIENT_KWARGS = None
 
 # 下载中间件
-MIDDLEWARES = []
+MIDDLEWARES = [
+    StatsMiddleware
+]
 
 # 默认去重，不删除去重队列, 将根据queue的类型来决定
 DUPEFILTER_CLS = None

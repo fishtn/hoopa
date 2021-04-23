@@ -54,13 +54,6 @@ async def get_cls(path, **kwargs):
     return obj
 
 
-async def cls_close(func):
-    if iscoroutinefunction(func.close):
-        await func.close()
-    else:
-        func.close()
-
-
 def request_fingerprint(request):
     fp = hashlib.md5()
     fp.update(to_bytes(request.method))

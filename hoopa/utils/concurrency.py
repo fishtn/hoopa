@@ -33,3 +33,10 @@ async def run_function(callable_fun,  *args, **kwargs) -> Any:
         return await callable_fun(*args, **kwargs)
     else:
         return await run_in_threadpool(callable_fun, *args, **kwargs)
+
+
+async def run_function_no_concurrency(func):
+    if iscoroutinefunction(func):
+        await func()
+    else:
+        func()

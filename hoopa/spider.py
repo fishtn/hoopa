@@ -7,7 +7,6 @@ import operator
 import traceback
 import weakref
 from abc import ABC
-from functools import reduce
 from inspect import isawaitable
 import typing
 from signal import SIGINT, SIGTERM
@@ -16,12 +15,11 @@ from types import AsyncGeneratorType, CoroutineType
 import ujson
 from loguru import logger
 
-from hoopa.middlewares.stats import downloader_stats
 from hoopa.settings import const
-from hoopa.utils.concurrency import run_function
+from hoopa.utils.concurrency import run_function, run_function_no_concurrency
 from hoopa.utils.log import Logging
 from hoopa.utils.asynciter import AsyncIter
-from hoopa.utils.helpers import spider_sleep, get_md5, split_list, get_uuid, get_timestamp, get_cls, cls_close
+from hoopa.utils.helpers import spider_sleep, get_md5, split_list, get_uuid, get_timestamp, get_cls
 from hoopa.exceptions import InvalidCallbackResult, SpiderHookError
 from hoopa.middleware import Middleware
 from hoopa.item import Item
@@ -30,7 +28,6 @@ from hoopa.response import Response
 from hoopa.scheduler import Scheduler
 from hoopa.utils.project import get_project_settings, Setting
 from hoopa.utils import decorators
-from hoopa.utils.url import get_location_from_history
 
 try:
     import uvloop
@@ -130,35 +127,25 @@ class Spider(BaseSpider, ABC):
     settings_path: str = "config.settings"
     start_urls: list = []
 
-    def __init__(self, middleware: typing.Union[typing.Iterable, Middleware] = None, loop=None):
+    def __init__(self, loop=None):
         self.loop = loop
         asyncio.set_event_loop(self.loop)
 
-        # 初始化调度器
-        self.scheduler = Scheduler()
+        # 调度器
+        self.scheduler = None
+        # 中间件
+        self.middleware = None
+
         # 循环获取request，默认True
         self.run = True
         # 协程任务list
         self.task_dict = {}
 
         # 读取配置文件，如果config下面没有配置文件，那么返回默认配置
-        self.setting: Setting = get_project_settings(self.settings_path)
+        self.setting = get_project_settings(self.settings_path)
         # 加载爬虫里面的配置，覆盖配置文件的配置
         self.setting.init_settings(self)
         self.logging = Logging(self.setting)
-
-        # 加载middleware
-        middleware_list = [downloader_stats]
-        if middleware and isinstance(middleware, list):
-            middleware_list.extend(middleware)
-
-        # 加载配置里面的中间件
-        if self.setting["MIDDLEWARES"] and isinstance(self.setting["MIDDLEWARES"], list):
-            middleware_list.extend(self.setting["MIDDLEWARES"])
-
-        self.middleware = reduce(lambda x, y: x + y, middleware_list)
-
-        self.setting.print_log(self)
 
     async def _load(self):
         # 初始化 spider init
@@ -170,13 +157,19 @@ class Spider(BaseSpider, ABC):
         self.downloader = await get_cls(downloader_cls, http_client_kwargs=http_client_kwargs)
 
         # 初始化 scheduler
-        await self.scheduler.init(self.setting)
+        self.scheduler = await Scheduler().init(self.setting)
+
+        # 初始化中间件
+        self.middleware = await Middleware().init(self.setting)
 
         # 初始化stats
         self.stats = self.scheduler.stats
 
         # 处理start_requests
         await self._handle_start_requests()
+
+        # 打印配置日志
+        self.setting.print_log(self)
 
     async def process_item(self, item_list: list):
         """
@@ -207,9 +200,6 @@ class Spider(BaseSpider, ABC):
 
         item_stats = {}
         request_stats = {}
-
-        if isinstance(callback_results, typing.Generator):
-            callback_results = AsyncIter(callback_results)
 
         try:
             async for callback_result in callback_results:
@@ -254,7 +244,6 @@ class Spider(BaseSpider, ABC):
             logger.error(f"{request} {response} process item or request \n{response.debug_msg}")
 
     async def _process_callback(self, request, response):
-
         # 如果response.ok != 1，请求失败，不进行回调
         if response.ok != 1:
             return
@@ -264,7 +253,10 @@ class Spider(BaseSpider, ABC):
 
         try:
             if process_func is not None:
-                return await run_function(process_func, request, response)
+                callback_results = await run_function(process_func, request, response)
+                if isinstance(callback_results, typing.Generator):
+                    callback_results = AsyncIter(callback_results)
+                return callback_results
             else:
                 raise Exception(f"<Parse invalid callback result type: {request.callback}>")
         except Exception as e:
@@ -273,68 +265,18 @@ class Spider(BaseSpider, ABC):
             response.debug_msg = traceback.format_exc(self.logging.get_tb_limit())
             logger.error(f"{request} {response} callback error \n{response.debug_msg}")
 
-    async def _run_request_middleware(self, request: Request):
-        if self.middleware.request_middleware:
-            for middleware in self.middleware.request_middleware:
-                if callable(middleware):
-                    try:
-                        response = await run_function(middleware, self, request)
-                        if response is not None and not isinstance(response, (Response, Request)):
-                            raise Exception(f"<Middleware {middleware.__name__}: must return None, Response or Request")
-                        if response:
-                            return response
-                    except Exception as e:
-                        logger.error(f"<Middleware {middleware.__name__}: {traceback.format_exc()}>")
-
-        # 执行完request_middleware，调用下载器
-        response = await run_function(self.downloader.fetch, request)
-        if response.ok == 1:
-            if response.history:
-                last_url = get_location_from_history(response.history)
-                logger.debug(f"{request} redirect <{last_url}> success")
-            else:
-                logger.debug(f"{request} fetch {response}")
-        return response
-
-    async def _run_response_middleware(self, request: Request, response: Response):
-        # 如果response是request，返回异步生成器
-        if isinstance(response, Request):
-            return AsyncIter([response])
-
-        # 没有response中间件，返回
-        if not self.middleware.response_middleware:
-            return
-
-        for middleware in self.middleware.response_middleware:
-            if callable(middleware):
-                try:
-                    middleware_response = await run_function(middleware, self, request, response)
-                    if middleware_response is not None and not isinstance(middleware_response, (Response, Request)):
-                        raise Exception(f"<Middleware {middleware.__name__}: must return None, Response or Request")
-
-                    if isinstance(middleware_response, Request):
-                        return AsyncIter([middleware_response])
-
-                    if isinstance(middleware_response, Response):
-                        response = middleware_response
-                        break
-
-                except Exception as e:
-                    logger.error(f"<Middleware {middleware.__name__}: {e}")
-
-        return await self._process_callback(request, response)
-
-    @decorators.handle_request_retry()
-    async def handle_request(self, request: Request):
+    @decorators.handle_download_callback_retry()
+    async def handle_download_callback(self, request: Request):
         """
         处理请求
         @param request: request对象
         """
         # 加载request中间件, 并调用下载器
-        response = await self._run_request_middleware(request)
+        response = await self.middleware.download(self.downloader.fetch, request, self)
 
-        # 加载response中间件
-        callback_result = await self._run_response_middleware(request, response)
+        # 回调
+        callback_result = await self._process_callback(request, response)
+
         # 处理异步返回的request和item
         await self._process_async_callback(request, response, callback_result)
 
@@ -350,7 +292,7 @@ class Spider(BaseSpider, ABC):
         try:
             task_request = request.replace()
             # 处理请求和回调
-            response = await self.handle_request(task_request)
+            response = await self.handle_download_callback(task_request)
             # 处理请求响应
             await self.process_response(request, response)
             # 处理请求结果
@@ -420,9 +362,7 @@ class Spider(BaseSpider, ABC):
         # SIGTERM：请求中止进程，kill命令缺省发送
         for signal in (SIGINT, SIGTERM):
             try:
-                self.loop.add_signal_handler(
-                    signal, lambda: asyncio.ensure_future(self.cancel_all_tasks(signal))
-                )
+                self.loop.add_signal_handler(signal, lambda: asyncio.ensure_future(self.cancel_all_tasks(signal)))
             except NotImplementedError:
                 logger.warning(f"当前平台不支持signal: {signal}")
 
@@ -438,32 +378,20 @@ class Spider(BaseSpider, ABC):
             logger.info("Spider finished!")
 
     @classmethod
-    async def async_start(
-            cls,
-            middleware: typing.Union[typing.Iterable, Middleware] = None,
-            loop=None,
-            before_start=None,
-            after_stop=None,
-    ):
+    async def async_start(cls, before_start=None, after_stop=None, loop=None):
         loop = loop or asyncio.get_event_loop()
-        spider_ins = cls(middleware=middleware, loop=loop)
+        spider_ins = cls(loop=loop)
         await spider_ins._start(before_start, after_stop)
         return spider_ins
 
     @classmethod
-    def start(
-            cls,
-            middleware: typing.Union[typing.Iterable, Middleware] = None,
-            before_start=None,
-            after_stop=None,
-            loop=None
-    ):
+    def start(cls, before_start=None, after_stop=None, loop=None):
         """
         爬虫入口, 非异步
         @rtype: object
         """
         loop = loop or asyncio.get_event_loop()
-        spider_ins = cls(middleware=middleware, loop=loop)
+        spider_ins = cls(loop=loop)
         loop.run_until_complete(spider_ins._start(before_start, after_stop))
         spider_ins.loop.run_until_complete(spider_ins.loop.shutdown_asyncgens())
         spider_ins.loop.close()
@@ -473,7 +401,8 @@ class Spider(BaseSpider, ABC):
         await self.scheduler.stats.max_value("finish_time", int(get_timestamp()))
         spider_stats = await self.stats.get_stats()
         await self.scheduler.close()
-        await cls_close(self.downloader)
+        await run_function_no_concurrency(self.downloader.close)
+        await run_function_no_concurrency(self.middleware.close)
 
         spider_stats_sorted_keys = sorted(spider_stats.items(), key=operator.itemgetter(0))
         blank = " " * 4
