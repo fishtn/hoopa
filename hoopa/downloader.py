@@ -8,12 +8,18 @@ import httpx
 import requests
 from aiohttp import TCPConnector
 
+from hoopa.utils.concurrency import run_function
 from hoopa.utils.decorators import http_decorator
 from hoopa.request import Request
 from hoopa.response import Response
 
 
 class Downloader:
+    """
+    下载器基础类，子类需要实现：init, close, get_session, fetch
+    同步调用：fetch
+    异步调用：async_fetch
+    """
     session = None
     close_session = None
 
@@ -23,10 +29,29 @@ class Downloader:
     async def close(self):
         pass
 
-    async def fetch(self, request: Request) -> Response:
+    async def get_session(self, request):
+        """
+        1. 优先使用request参数的session
+        2. client_kwargs参数不为空，新建一个session
+        3. 全局session不为空，使用全局session
+        4. 新建一个session，提供给单次下载
+        """
         pass
 
-    async def get_session(self, request):
+    async def async_fetch(self, request: Request) -> Response:
+        """
+        异步请求
+        @param request:
+        @return: Response
+        """
+        return await run_function(self.fetch, request)
+
+    def fetch(self, request: Request) -> Response:
+        """
+        同步请求
+        @param request:
+        @return: Response
+        """
         pass
 
 
@@ -58,7 +83,7 @@ class AiohttpDownloader(Downloader):
         1. 优先使用request参数的session
         2. client_kwargs参数不为空，新建一个session
         3. 全局session不为空，使用全局session
-        4. 新建一个session
+        4. 新建一个session，提供给单次下载
         """
         if request.session:
             return request.session
@@ -127,12 +152,6 @@ class HttpxDownloader(Downloader):
                 await session.aclose()
 
     async def get_session(self, request):
-        """
-        1. 优先使用request参数的session
-        2. client_kwargs参数不为空，新建一个session
-        3. 全局session不为空，使用全局session
-        4. 新建一个session
-        """
         if request.session:
             return request.session
         elif request.client_kwargs:
@@ -142,6 +161,7 @@ class HttpxDownloader(Downloader):
         elif self.session:
             return self.session
         else:
+            # 单个请求创建的会话需要使用后关闭
             self.close_session = True
             return httpx.AsyncClient()
 
@@ -151,10 +171,8 @@ class RequestsDownloader(Downloader):
     Requests下载器
     """
     def init(self, http_client_kwargs):
-        if http_client_kwargs:
-            self.session = self.create_session(self.session, **http_client_kwargs)
-        else:
-            self.session = self.create_session()
+        session = requests.Session()
+        session = self.set_session(session, **http_client_kwargs)
         return self
 
     def close(self):
@@ -181,27 +199,23 @@ class RequestsDownloader(Downloader):
                 session.close()
 
     def get_session(self, request):
-        """
-        1. 优先使用request参数的session
-        2. client_kwargs参数不为空，新建一个session
-        3. 全局session不为空，使用全局session
-        4. 新建一个session
-        """
         if request.session:
             return request.session
         elif request.client_kwargs:
             # 单个请求创建的会话需要使用后关闭
             self.close_session = True
-            session = self.create_session(**request.client_kwargs)
+            session = requests.Session()
+            session = self.set_session(session, **request.client_kwargs)
             return session
         elif self.session:
             return self.session
         else:
-            return self.create_session()
-
-    def create_session(self, session=None, **kwargs):
-        if session is None:
+            self.close_session = True
             session = requests.Session()
+            return self.set_session(session)
+
+    @staticmethod
+    def set_session(session, **kwargs):
         for key, value in kwargs.items():
             if hasattr(session, key):
                 setattr(session, key, value)

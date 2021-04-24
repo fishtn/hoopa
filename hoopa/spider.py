@@ -343,6 +343,7 @@ class Spider(BaseSpider, ABC):
                     break
 
                 new_task_id = get_uuid()
+                # 动态添加协程，上限是设置并发数
                 asyncio.run_coroutine_threadsafe(self._process_task(request, new_task_id), loop=self.loop)
                 self.task_dict.setdefault(new_task_id, get_timestamp())
 

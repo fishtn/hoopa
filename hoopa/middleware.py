@@ -89,7 +89,7 @@ class Middleware:
                 logger.error(f"<Middleware {middleware.__name__}: {e} \n{traceback.format_exc()}>")
 
         # 执行完request_middleware，调用下载器
-        return await run_function(download_func, request)
+        return await download_func(request)
 
     async def process_response(self, request: Request, response: Response, spider_ins):
         # 如果response是request，返回异步生成器
