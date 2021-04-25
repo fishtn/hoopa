@@ -172,7 +172,10 @@ class RequestsDownloader(Downloader):
     """
     def init(self, http_client_kwargs):
         session = requests.Session()
-        session = self.set_session(session, **http_client_kwargs)
+        if http_client_kwargs:
+            self.session = self.set_session(session, **http_client_kwargs)
+        else:
+            self.session = self.set_session(session)
         return self
 
     def close(self):
