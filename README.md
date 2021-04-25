@@ -6,13 +6,14 @@
 **hoopa** 是一个轻量、快速的异步分布式爬虫框架
 
 - 支持基于内存、redis、rabbitmq的优先级队列
-- 支持aiohttp、 httpx、requests等HTTP 客户端
+- 支持aiohttp、 httpx、requests等HTTP 库
 - 支持断点续传
 
-> 项目还在开发测试中，请勿用于生产环境
+> 项目还在开发测试中，请勿用于生产环境，若发现问题，欢迎提issue
 
 
 文档地址：https://fishtn.github.io/hoopa/
+
 
 ## 环境要求：
 

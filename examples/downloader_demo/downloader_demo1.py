@@ -7,9 +7,10 @@ from hoopa.settings import const
 class DownloaderDemoSpider(hoopa.Spider):
     name = "downloader_demo"
     start_urls = ["http://httpbin.org/json"]
-    # 默认为aiohttp，可修改为httpx
+    # 默认为aiohttp，可修改为httpx, requests
     downloader_cls = const.RequestsDownloader
     # downloader_cls = const.HttpxDownloader
+    # downloader_cls = const.AiohttpDownloader
     log_level = "debug"
 
     def parse(self, request, response):
