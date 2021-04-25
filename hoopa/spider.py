@@ -3,6 +3,7 @@
 爬虫核心
 """
 import asyncio
+import inspect
 import operator
 import traceback
 import weakref
@@ -16,7 +17,7 @@ import ujson
 from loguru import logger
 
 from hoopa.settings import const
-from hoopa.utils.concurrency import run_function, run_function_no_concurrency
+from hoopa.utils.concurrency import run_function, run_function_no_concurrency, iterate_in_threadpool
 from hoopa.utils.log import Logging
 from hoopa.utils.asynciter import AsyncIter
 from hoopa.utils.helpers import spider_sleep, get_md5, split_list, get_uuid, get_timestamp, get_cls
@@ -165,11 +166,11 @@ class Spider(BaseSpider, ABC):
         # 初始化stats
         self.stats = self.scheduler.stats
 
-        # 处理start_requests
-        await self._handle_start_requests()
-
         # 打印配置日志
         self.setting.print_log(self)
+
+        # 处理start_requests
+        await self._handle_start_requests()
 
     async def process_item(self, item_list: list):
         """
@@ -221,8 +222,8 @@ class Spider(BaseSpider, ABC):
             logger.error(f"{request} {response} process_async_callback \n{response.debug_msg}")
 
         try:
-            # 处理新请求, 默认100个请求批量存储
-            request_list_split = split_list(request_list, 100)
+            # 处理新请求, 默认50个请求批量存储
+            request_list_split = split_list(request_list, 50)
             for request_item in request_list_split:
                 count = await self.scheduler.add(request_item)
                 logger.debug(f"{request} push request {count}")
@@ -254,9 +255,11 @@ class Spider(BaseSpider, ABC):
         try:
             if process_func is not None:
                 callback_results = await run_function(process_func, request, response)
-                if isinstance(callback_results, typing.Generator):
-                    callback_results = AsyncIter(callback_results)
-                return callback_results
+                # 判断是否是异步生成器，生成器需要需要在线程池里运行，避免阻塞
+                if callback_results and not inspect.isasyncgen(callback_results):
+                    return iterate_in_threadpool(callback_results)
+                else:
+                    return callback_results
             else:
                 raise Exception(f"<Parse invalid callback result type: {request.callback}>")
         except Exception as e:
@@ -357,7 +360,6 @@ class Spider(BaseSpider, ABC):
         await self.cancel_all_tasks()
 
     async def _start(self, before_start=None, after_stop=None):
-
         # 添加信号
         # SIGINT：由Interrupt Key产生，通常是CTRL+C或者DELETE。发送给所有ForeGround Group的进程
         # SIGTERM：请求中止进程，kill命令缺省发送

@@ -40,3 +40,25 @@ async def run_function_no_concurrency(func):
         await func()
     else:
         func()
+
+
+class _StopIteration(Exception):
+    pass
+
+
+def _next(iterator: Iterator) -> Any:
+    # We can't raise `StopIteration` from within the threadpool iterator
+    # and catch it outside that context, so we coerce them into a different
+    # exception type.
+    try:
+        return next(iterator)
+    except StopIteration:
+        raise _StopIteration
+
+
+async def iterate_in_threadpool(iterator: Iterator) -> AsyncGenerator:
+    while True:
+        try:
+            yield await run_in_threadpool(_next, iterator)
+        except _StopIteration:
+            break
