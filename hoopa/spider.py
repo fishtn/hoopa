@@ -150,7 +150,7 @@ class Spider(BaseSpider, ABC):
 
     async def _load(self):
         # 初始化 spider init
-        await self.init()
+        await run_function(self.init)
 
         # 初始化 download
         downloader_cls = self.setting["DOWNLOADER_CLS"]
