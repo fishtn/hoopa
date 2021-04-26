@@ -80,10 +80,12 @@ class Scheduler:
             if not is_url(item.url):
                 raise InvalidUrl(f"Invalid url: {item.url} ")
 
+        request_stats = {}
         # 去重
         request_list = []
         for request in requests:
             if request.dont_filter or await self.dupefilter.get(request.fp):
+                request_stats[request.priority] = request_stats.get(request.priority, 0) + 1
                 request_list.append(request)
 
         #  去重后为空
@@ -97,6 +99,11 @@ class Scheduler:
         for request in requests:
             if not request.dont_filter:
                 await self.dupefilter.add(request.fp)
+
+        # 统计，统计去重数（待定）
+        # 统计request
+        for k, v in request_stats.items():
+            await self.stats.inc_value(f"request/priority_count/{k}", v)
 
         return set_len
 

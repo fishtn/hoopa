@@ -200,13 +200,10 @@ class Spider(BaseSpider, ABC):
         item_list = []
 
         item_stats = {}
-        request_stats = {}
 
         try:
             async for callback_result in callback_results:
                 if isinstance(callback_result, Request):
-                    key = callback_result.priority
-                    item_stats[key] = item_stats.get(key, 0) + 1
                     request_list.append(callback_result)
                 elif isinstance(callback_result, Item):
                     key = callback_result.name
@@ -235,9 +232,7 @@ class Spider(BaseSpider, ABC):
             # 统计item
             for k, v in item_stats.items():
                 await self.stats.inc_value(f"item/{k}_count", v)
-            # 统计request
-            for k, v in request_stats.items():
-                await self.stats.inc_value(f"request/priority_count/{k}", v)
+
         except Exception as e:
             response.ok = 0
             response.error_type = e.__class__.__name__
