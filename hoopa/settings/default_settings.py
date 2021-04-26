@@ -31,7 +31,7 @@ MIDDLEWARES = [
 ]
 
 # 默认去重，不删除去重队列, 将根据queue的类型来决定
-DUPEFILTER_CLS = None
+DUPEFILTER_CLS = const.MemoryDupeFilter
 # 是否删除去重队列
 CLEAN_DUPEFILTER = None
 # 去重数据库连接配置
