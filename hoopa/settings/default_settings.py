@@ -37,7 +37,7 @@ CLEAN_DUPEFILTER = None
 # 去重数据库连接配置
 DUPEFILTER_SETTING = None
 
-# 统计器
+# 统计器, 默认根据队列决定，可以自行修改
 STATS_CLS = const.MemoryStatsCollector
 
 # redis配置信息

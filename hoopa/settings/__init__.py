@@ -59,7 +59,7 @@ class Setting:
     def set(self, name, value, priority="project"):
         setting_item = self.priority_map.get(name, SettingItem())
         if getattr(setting_item, priority, None) is not None:
-            if SETTINGS_PRIORITIES[priority] > self.priority_map[name].max_priority:
+            if SETTINGS_PRIORITIES[priority] >= self.priority_map[name].max_priority:
                 setattr(self, name, value)
                 setattr(self.priority_map[name], priority, value)
         else:
@@ -96,13 +96,10 @@ class Setting:
             if getattr(spider_ins, name) is not None:
                 self.set(name.upper(), getattr(spider_ins, name), "spider")
 
-        # 去重default配置
+        # 根据queue设置去重和统计类型
         if self.get("QUEUE_CLS") == const.RedisQueue:
             self.set("DUPEFILTER_CLS", const.RedisDupeFilter, "default")
             self.set("STATS_CLS", const.RedisStatsCollector, "default")
-        else:
-            self.set("DUPEFILTER_CLS", const.MemoryDupeFilter, "default")
-            self.set("STATS_CLS", const.MemoryStatsCollector, "default")
 
         self.set("DUPEFILTER_SETTING", self.get("REDIS_SETTING"), "default")
         self.set("CLEAN_DUPEFILTER", self.get("CLEAN_QUEUE"), "default")
