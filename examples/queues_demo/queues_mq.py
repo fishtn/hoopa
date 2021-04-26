@@ -8,13 +8,13 @@ class QueuesDemoSpider(hoopa.Spider):
     name = "queues_demo"
     start_urls = ["http://httpbin.org/json"]
 
-    # 默认为MemoryQueue
-    # queue_cls = const.MemoryQueue
+    # mq
+    queue_cls = const.RabbitMQQueue
 
-    # 设置队列为redis
-    queue_cls = const.RedisQueue
-
-    redis_setting = "redis://127.0.0.1:6379/0?encoding=utf-8"
+    #  默认配置
+    mq_maxsize = 10
+    mq_uri = "amqp://guest:guest@127.0.0.1/"
+    mq_api_port = 15672
 
     def parse(self, request, response):
         data = response.json()

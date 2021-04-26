@@ -6,7 +6,7 @@
 **hoopa** 是一个轻量、快速的异步分布式爬虫框架
 
 - 支持基于内存、redis、rabbitmq的优先级队列
-- 支持aiohttp、 httpx、requests等HTTP 库
+- 支持aiohttp、 httpx、requests等HTTP库
 - 支持断点续传
 
 > 项目还在开发测试中，请勿用于生产环境，若发现问题，欢迎提issue
@@ -69,3 +69,4 @@ if __name__ == "__main__":
 -   [ruia](https://github.com/howie6879/ruia)
 -   [feapder](https://github.com/Boris-code/feapder)
 -   [scrapy](https://github.com/scrapy/scrapy)
+-   [starlette](https://github.com/encode/starlette)
