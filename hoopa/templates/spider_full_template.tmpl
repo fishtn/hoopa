@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from hoopa import Spider
-from hoopa import Item
-from hoopa import Middleware
+
+from hoopa import Spider, Request, Item
 
 
 class DataItem(Item):
@@ -14,7 +13,7 @@ class CommonMiddleware:
         request.timeout = 10
 
     def process_response(self, request, response, spider_ins):
-        request.timeout = 10
+        pass
 
 
 class ${spider_class_name}(Spider):
@@ -22,7 +21,7 @@ class ${spider_class_name}(Spider):
     middlewares = [CommonMiddleware]
 
     def start_requests(self):
-        yield hoopa.Request(url="", callback=self.parse)
+        yield Request(url="", callback=self.parse)
 
     def parse(self, request, response):
         print(response)
@@ -30,7 +29,6 @@ class ${spider_class_name}(Spider):
     def process_item(self, item_list: list):
         for item in item_list:
             print(item)
-
 
 
 if __name__ == "__main__":
