@@ -10,6 +10,7 @@ from functools import wraps
 from loguru import logger
 import traceback
 
+from .concurrency import run_function
 from .helpers import spider_sleep
 from .url import get_location_from_history
 from ..request import Request
@@ -63,7 +64,7 @@ def handle_download_callback_retry():
                 # 调用retry_func方法
                 retry_func = request.request_config.get("RETRY_FUNC")
                 if retry_func and iscoroutinefunction(retry_func):
-                    await retry_func(request, response)
+                    await run_function(retry_func, request, response)
 
                 # 当ok == -1的时候，直接返回
                 if response.ok == -1:

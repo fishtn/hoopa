@@ -2,8 +2,7 @@
 """
 request对象
 """
-
-from collections.abc import Coroutine
+import typing
 
 from w3lib.url import add_or_replace_parameters, canonicalize_url
 
@@ -26,7 +25,7 @@ class Request:
     REQUEST_CONFIG = {
         "RETRIES": 3,  # 重试次数
         "RETRY_DELAY": 0,  # 重试间隔
-        "RETRY_FUNC": Coroutine,  # 重试之前的函数调用
+        "RETRY_FUNC": typing.Callable,  # 重试之前的函数调用
     }
 
     def __init__(self, url, callback=None, method='get', headers=None, params=None,
