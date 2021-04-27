@@ -34,4 +34,4 @@ from hoopa.utils.log import Logging
 from hoopa.utils.project import Setting
 from hoopa.downloader import AiohttpDownloader, HttpxDownloader
 
-__version__ = "0.0.8"
+__version__ = "0.0.9"

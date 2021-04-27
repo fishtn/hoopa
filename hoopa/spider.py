@@ -135,7 +135,7 @@ class Spider(BaseSpider, ABC):
         # 调度器
         self.scheduler = None
         # 中间件
-        self.middleware = None
+        self._middleware = None
 
         # 循环获取request，默认True
         self.run = True
@@ -161,7 +161,7 @@ class Spider(BaseSpider, ABC):
         self.scheduler = await Scheduler().init(self.setting)
 
         # 初始化中间件
-        self.middleware = await Middleware().init(self.setting)
+        self._middleware = await Middleware().init(self.setting)
 
         # 初始化stats
         self.stats = self.scheduler.stats
@@ -270,7 +270,7 @@ class Spider(BaseSpider, ABC):
         @param request: request对象
         """
         # 加载request中间件, 并调用下载器
-        response = await self.middleware.download(self.downloader.fetch, request, self)
+        response = await self._middleware.download(self.downloader.fetch, request, self)
 
         # 回调
         callback_result = await self._process_callback(request, response)
@@ -400,7 +400,7 @@ class Spider(BaseSpider, ABC):
         spider_stats = await self.stats.get_stats()
         await self.scheduler.close()
         await run_function_no_concurrency(self.downloader.close)
-        await run_function_no_concurrency(self.middleware.close)
+        await run_function_no_concurrency(self._middleware.close)
 
         spider_stats_sorted_keys = sorted(spider_stats.items(), key=operator.itemgetter(0))
         blank = " " * 4

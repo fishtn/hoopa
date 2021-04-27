@@ -105,7 +105,7 @@ class AiohttpDownloader(Downloader):
             async with session.request(**_kwargs) as resp:
                 response = Response(
                     url=str(resp.url),
-                    _body=await resp.read(),
+                    body=await resp.read(),
                     status=resp.status,
                     cookies=resp.cookies,
                     headers=resp.headers,
@@ -140,7 +140,7 @@ class HttpxDownloader(Downloader):
             resp = await self.session.request(**_kwargs)
             response = Response(
                 url=str(resp.url),
-                _body=resp.content,
+                body=resp.content,
                 status=resp.status_code,
                 cookies=resp.cookies,
                 headers=resp.headers,
@@ -190,7 +190,7 @@ class RequestsDownloader(Downloader):
             resp = self.session.request(**_kwargs)
             response = Response(
                 url=str(resp.url),
-                _body=resp.content,
+                body=resp.content,
                 status=resp.status_code,
                 cookies=resp.cookies,
                 headers=resp.headers,

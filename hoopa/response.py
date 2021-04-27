@@ -5,62 +5,118 @@ response对象
 import codecs
 from dataclasses import dataclass
 
-import typing
-from http.cookies import SimpleCookie
-
 import cchardet
 import ujson
 from aiohttp import helpers
-from httpx import Cookies
 from parsel import Selector
-from requests.cookies import RequestsCookieJar
 
 from hoopa.utils.url import get_location_from_history
 
 
 @dataclass
 class Response:
-    url: str = None
-    _body: bytes = b''
-    status: int = -1
-    headers: typing.Union[typing.Any] = None
-    cookies: typing.Union[SimpleCookie, Cookies, RequestsCookieJar, typing.Any] = None
-    history: typing.Union[list, tuple] = None
-    encoding: str = None
+    def __init__(
+        self,
+        url: str = "",
+        *,
+        encoding: str = "",
+        cookies=None,
+        history=None,
+        headers=None,
+        status: int = -1,
+        body: bytes = b'',
+        text: str = "",
+    ):
+        self._url = url
+        self._encoding = encoding
+        self._headers = headers
+        self._cookies = cookies
+        self._history = history
+        self._status = status
 
-    ok: int = 1  # 请求状态： 1成功；0失败，会进行重试；-1失败，不进行失败，直接进入失败队列
-    error_type: int = None  # 错误名称
-    debug_msg: str = None  # 调试信息
+        self._body = body
+        self._text = text
 
-    _selector: Selector = None  # xpath的selector
+        self._error_type: str = ""  # 错误名称
+        self._debug_msg: str = ""  # 调试信息
 
-    def json(self):
-        return ujson.loads(self.text)
+        self._ok: int = 1  # 请求状态： 1成功；0失败，会进行重试；-1失败，不进行失败，直接进入失败队列
 
     @property
-    def text(self, errors='ignore'):
-        # 如果response设置coding, 返回重新编码的
-        if not self._body:
-            return None
-
-        if not self.encoding:
-            self.encoding = self.get_encoding()
-
-        return self._body.decode(self.encoding, errors=errors)
+    def url(self):
+        return self._url
 
     @property
-    def body(self):
-        return self._body
+    def encoding(self):
+        return self._encoding
 
     @property
     def content(self):
         return self._body
 
     @property
+    def text(self, errors='ignore'):
+        if self._text:
+            return self._text
+
+        if not self._body:
+            return None
+
+        if not self._encoding:
+            self._encoding = self.get_encoding()
+
+        return self._body.decode(self._encoding, errors=errors)
+
+    @text.setter
+    def text(self, value: str):
+        self._text = value
+
+    def json(self):
+        return ujson.loads(self.text)
+
+    @property
+    def ok(self):
+        return self._ok
+
+    @ok.setter
+    def ok(self, value: int):
+        self._ok = value
+
+    @property
+    def error_type(self):
+        return self._error_type
+
+    @error_type.setter
+    def error_type(self, value: str):
+        self._error_type = value
+
+    @property
+    def debug_msg(self):
+        return self._debug_msg
+
+    @debug_msg.setter
+    def debug_msg(self, value: str):
+        self._debug_msg = value
+
+    @property
+    def headers(self):
+        return self._headers
+
+    @property
+    def cookies(self):
+        return self._cookies
+
+    @property
+    def history(self):
+        return self._history
+
+    @property
+    def status(self):
+        return self._status
+
+    @property
     def selector(self):
-        if not self._selector:
-            self._selector = Selector(self.text)
-        return self._selector
+        return Selector(self.text)
 
     def xpath(self, xpath_str):
         return self.selector.xpath(xpath_str)
@@ -78,7 +134,7 @@ class Response:
         return request_dict
 
     def get_encoding(self) -> str:
-        c_type = self.headers.get("Content-Type", "").lower()
+        c_type = self._headers.get("Content-Type", "").lower()
         mimetype = helpers.parse_mimetype(c_type)
 
         encoding = mimetype.parameters.get("charset")
@@ -101,11 +157,11 @@ class Response:
 
     @property
     def response_url(self):
-        if self.history:
-            last_res_url = get_location_from_history(self.history[-1].headers)
+        if self._history:
+            last_res_url = get_location_from_history(self._history)
             return last_res_url
         else:
             return self.url
 
     def __repr__(self):
-        return f"<Response [{self.status}]>"
+        return f"<Response [{self._status}]>"
