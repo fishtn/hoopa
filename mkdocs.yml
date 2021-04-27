@@ -20,10 +20,10 @@ nav:
       - 5. Spider: ./basicConcepts/5.spider.md
       - 6. Middleware: ./basicConcepts/6.middleware.md
       - 7. Queue: ./basicConcepts/7.queue.md
-  -  框架使用:
+  - 框架使用:
       - 代理: ./use/proxy.md
       - 重试: ./use/retry.md
-  -  框架其他:
+  - 框架其他:
       - 信息收集: ./other/retry.md
       - 去重: ./other/proxy.md
       - 配置文件: ./other/config.md
