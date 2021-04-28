@@ -184,7 +184,7 @@ class Spider(BaseSpider, ABC):
                 item_md5 = get_md5(item_str_json)
 
                 with await self.scheduler.scheduler_queue.pool as conn:
-                    result = await conn.hmset(f"{self.name}:{item.name}", item_md5, item_str_json)
+                    result = await conn.hmset(f"{self.name}:{item.item_name}", item_md5, item_str_json)
 
                 if result:
                     logger.info(f"{item.__dict__}")
@@ -206,7 +206,7 @@ class Spider(BaseSpider, ABC):
                 if isinstance(callback_result, Request):
                     request_list.append(callback_result)
                 elif isinstance(callback_result, Item):
-                    key = callback_result.name
+                    key = callback_result.item_name
                     item_stats[key] = item_stats.get(key, 0) + 1
                     item_list.append(callback_result)
                 else:
