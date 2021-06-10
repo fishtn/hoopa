@@ -61,11 +61,6 @@ def handle_download_callback_retry():
                     logger.error(f"{request} too many error, try {request.retry_times} times")
                     response.ok = -1
 
-                # 调用retry_func方法
-                retry_func = request.request_config.get("RETRY_FUNC")
-                if retry_func and iscoroutinefunction(retry_func):
-                    await run_function(retry_func, request, response)
-
                 # 当ok == -1的时候，直接返回
                 if response.ok == -1:
                     return response
@@ -76,8 +71,8 @@ def handle_download_callback_retry():
                 await self.stats.inc_value(f"requests/retry_times/{response.error_type}", 1)
 
                 # 休眠
-                if request.request_config.get("RETRY_DELAY", 0) > 0:
-                    await spider_sleep(request.request_config["RETRY_DELAY"])
+                if request.retry_delay > 0:
+                    await spider_sleep(request.retry_delay)
 
         return wrapper
 

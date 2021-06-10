@@ -16,10 +16,6 @@ __all__ = [
     "Setting",
     "AiohttpDownloader",
     "HttpxDownloader",
-    "AiohttpRequest",
-    "AiohttpClient",
-    "HttpxRequest",
-    "HttpxClient",
 ]
 
 from hoopa.spider import Spider
@@ -29,9 +25,8 @@ from hoopa.request import Request
 from hoopa.response import Response
 from hoopa.utils import helpers
 from hoopa.settings import const
-from hoopa.utils.http_params import AiohttpRequest, AiohttpClient, HttpxRequest, HttpxClient
 from hoopa.utils.log import Logging
 from hoopa.utils.project import Setting
 from hoopa.downloader import AiohttpDownloader, HttpxDownloader
 
-__version__ = "0.0.10"
+__version__ = "0.0.11"

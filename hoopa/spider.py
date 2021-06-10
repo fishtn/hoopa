@@ -288,7 +288,7 @@ class Spider(BaseSpider, ABC):
         @param request: request对象
         """
         try:
-            task_request = request.replace()
+            task_request = request.copy()
             # 处理请求和回调
             response = await self.handle_download_callback(task_request)
             # 处理请求响应
