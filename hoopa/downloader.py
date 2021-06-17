@@ -21,7 +21,6 @@ class Downloader:
     异步调用：async_fetch
     """
     session = None
-    close_session = None
 
     async def init(self, setting):
         pass
@@ -86,20 +85,18 @@ class AiohttpDownloader(Downloader):
         4. 新建一个session，提供给单次下载
         """
         if request.session:
-            return request.session
+            return request.session, False
         elif request.client_kwargs:
             # 单个请求创建的会话需要使用后关闭
-            self.close_session = True
-            return aiohttp.ClientSession(**request.client_kwargs)
+            return aiohttp.ClientSession(**request.client_kwargs), True
         elif self.session:
-            return self.session
+            return self.session, False
         else:
-            self.close_session = True
-            return aiohttp.ClientSession()
+            return aiohttp.ClientSession(), True
 
     @http_decorator
     async def fetch(self, request: Request) -> Response:
-        session = await self.get_session(request)
+        session, is_close = await self.get_session(request)
         _kwargs = request.replace_to_kwargs
         try:
             async with session.request(**_kwargs) as resp:
@@ -113,7 +110,7 @@ class AiohttpDownloader(Downloader):
                 )
                 return response
         finally:
-            if self.close_session:
+            if is_close:
                 await session.close()
 
 
@@ -133,7 +130,7 @@ class HttpxDownloader(Downloader):
 
     @http_decorator
     async def fetch(self, request: Request) -> Response:
-        session = await self.get_session(request)
+        session, is_close = await self.get_session(request)
         _kwargs = request.replace_to_kwargs
 
         try:
@@ -148,22 +145,20 @@ class HttpxDownloader(Downloader):
             )
             return response
         finally:
-            if self.close_session:
+            if is_close:
                 await session.aclose()
 
     async def get_session(self, request):
         if request.session:
-            return request.session
+            return request.session, False
         elif request.client_kwargs:
             # 单个请求创建的会话需要使用后关闭
-            self.close_session = True
-            return httpx.AsyncClient(**request.client_kwargs)
+            return httpx.AsyncClient(**request.client_kwargs), True
         elif self.session:
-            return self.session
+            return self.session, False
         else:
             # 单个请求创建的会话需要使用后关闭
-            self.close_session = True
-            return httpx.AsyncClient()
+            return httpx.AsyncClient(), True
 
 
 class RequestsDownloader(Downloader):
@@ -183,7 +178,7 @@ class RequestsDownloader(Downloader):
 
     @http_decorator
     def fetch(self, request: Request) -> Response:
-        session = self.get_session(request)
+        session, is_close = self.get_session(request)
         _kwargs = request.replace_to_kwargs
 
         try:
@@ -198,24 +193,22 @@ class RequestsDownloader(Downloader):
             )
             return response
         finally:
-            if self.close_session:
+            if is_close:
                 session.close()
 
     def get_session(self, request):
         if request.session:
-            return request.session
+            return request.session, False
         elif request.client_kwargs:
             # 单个请求创建的会话需要使用后关闭
-            self.close_session = True
             session = requests.Session()
             session = self.set_session(session, **request.client_kwargs)
-            return session
+            return session, True
         elif self.session:
-            return self.session
+            return self.session, False
         else:
-            self.close_session = True
             session = requests.Session()
-            return self.set_session(session)
+            return self.set_session(session), True
 
     @staticmethod
     def set_session(session, **kwargs):

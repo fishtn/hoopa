@@ -71,8 +71,8 @@ class Response:
     def text(self, value: str):
         self._text = value
 
-    def json(self):
-        return ujson.loads(self.text)
+    def json(self, *args, **kwargs):
+        return ujson.loads(self.text, *args, **kwargs)
 
     @property
     def ok(self):
