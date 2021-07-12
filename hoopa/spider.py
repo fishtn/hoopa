@@ -388,7 +388,7 @@ class Spider(BaseSpider, ABC):
         爬虫入口, 非异步
         @rtype: object
         """
-        loop = loop or asyncio.get_event_loop()
+        loop = loop or asyncio.new_event_loop()
         spider_ins = cls(loop=loop)
         loop.run_until_complete(spider_ins._start(before_start, after_stop))
         spider_ins.loop.run_until_complete(spider_ins.loop.shutdown_asyncgens())
