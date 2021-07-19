@@ -1,12 +1,20 @@
 """
 Item，数据对象需要继承这个
 """
+from typing import Dict
 
 
 class Item:
-    def __init__(self, item_name=None):
+    def __init__(self, item_name=None, data: Dict = None):
+        """
+        @param item_name: item名称
+        @param data: 字典，可以直接把字典设置到item
+        """
         if item_name:
             self.__class__.__name__ = item_name
+
+        if data:
+            self.__dict__.update(**data)
 
     @property
     def values(self):
