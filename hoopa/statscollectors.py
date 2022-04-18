@@ -1,20 +1,14 @@
 """
 collecting spider stats
 """
-import logging
 
 from hoopa.utils.connection import get_aio_redis
-
-logger = logging.getLogger(__name__)
 
 
 class StatsCollector:
 
     def __init__(self):
         self._stats = {}
-
-    async def init(self, setting):
-        pass
 
     async def get_value(self, key, default=None, spider=None):
         return self._stats.get(key, default)
@@ -44,12 +38,9 @@ class StatsCollector:
 
 class MemoryStatsCollector(StatsCollector):
 
-    def __init__(self,):
+    def __init__(self, *args, **kwargs):
         super().__init__()
         self.spider_stats = {}
-
-    async def init(self, setting):
-        pass
 
 
 class DummyStatsCollector(StatsCollector):
@@ -80,13 +71,21 @@ class RedisStatsCollector(StatsCollector):
     pool = None
     stats_key = None
 
-    def __init__(self):
+    def __init__(self, redis_setting, stats_key, engine):
         super().__init__()
+        self.redis_setting = redis_setting
+        self.stats_key = stats_key
+        self.engine = engine
 
-    async def init(self, setting):
-        redis_setting = setting["REDIS_SETTING"]
-        self.stats_key = f"{setting['NAME']}:Stats"
-        self.pool = await get_aio_redis(redis_setting)
+    @classmethod
+    async def create(cls, engine):
+        redis_setting = engine.setting["REDIS_SETTING"]
+        stats_key = f"{engine.setting['NAME']}:Stats"
+
+        return cls(redis_setting, stats_key, engine)
+
+    async def init(self):
+        self.pool = await get_aio_redis(self.redis_setting)
 
     async def get_value(self, key, default=None, spider=None):
         """Return the value of hash stats"""

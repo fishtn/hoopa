@@ -8,28 +8,18 @@ import time
 import traceback
 import typing
 from asyncio import PriorityQueue
-from urllib.parse import urlparse, quote_plus
 
-import aiohttp
 import ujson
 from loguru import logger
-from aio_pika import IncomingMessage
 
 from hoopa.request import Request
 from hoopa.response import Response
 from hoopa.utils.connection import get_aio_redis
 from hoopa.utils.helpers import get_timestamp, get_priority_list, get_mac_pid
-from hoopa.utils.rabbitmq_pool import RabbitMqPool
 from hoopa.utils.serialization import serialize_request_and_response
 
 
 class BaseQueue:
-    async def init(self, setting):
-        """
-        初始化队列
-        """
-        pass
-
     async def get(self, priority):
         """
         从队列中获取一个request
@@ -71,23 +61,21 @@ class BaseQueue:
 
 
 class MemoryQueue(BaseQueue):
-    def __init__(self, ):
+    def __init__(self, waiting, serialization_module, engine):
         # 下载队列，一个优先级队列
-        self.waiting = None
+        self.waiting = waiting
         # 进行中的队列，key为Request，value取出的时间戳
         self.pending = {}
         # 失败次数记录，key为Request，value失败次数
         self.failure = {}
-        self.module = None
-        self.setting = None
+        self.serialization_module = serialization_module
+        self.engine = engine
 
-    async def init(self, setting):
-        """
-        初始化
-        """
-        self.setting = setting
-        self.waiting = PriorityQueue()
-        self.module = importlib.import_module(setting.SERIALIZATION)
+    @classmethod
+    async def create(cls, engine):
+        waiting = PriorityQueue()
+        serialization_module = importlib.import_module(engine.setting["SERIALIZATION"])
+        return cls(waiting, serialization_module, engine)
 
     async def clean_scheduler(self, waiting=True, pending=True, failure=True, data=True):
         """
@@ -102,7 +90,7 @@ class MemoryQueue(BaseQueue):
         if not self.waiting.empty():
             result = await self.waiting.get()
             self.pending[result[1]] = get_timestamp()
-            return Request.unserialize(result[1], self.module)
+            return Request.unserialize(result[1], self.serialization_module)
         return None
 
     async def add(self, requests: typing.Union[Request, typing.List[Request]]):
@@ -116,9 +104,9 @@ class MemoryQueue(BaseQueue):
         count = 0
         # 判断是否在pending中，如果在，是否过了最大时间
         for request in requests:
-            str_request = request.serialize(self.module)
+            str_request = request.serialize(self.serialization_module)
             pended_time = self.pending.get(str_request, 0)
-            if time.time() - pended_time < self.setting["PENDING_THRESHOLD"]:
+            if time.time() - pended_time < self.engine.setting["PENDING_THRESHOLD"]:
                 continue
 
             count += 1
@@ -135,7 +123,7 @@ class MemoryQueue(BaseQueue):
         @param task_request:
         """
         # 如果失败，且失败次数未达到，返回waiting
-        str_request = request.serialize(self.module)
+        str_request = request.serialize(self.serialization_module)
 
         # 如果在进行队列中，删除
         if str_request in self.pending:
@@ -165,44 +153,43 @@ class RedisQueue(BaseQueue):
     """
     Redis队列
     """
-    def __init__(self):
+    def __init__(self, spider_name, serialization_module, engine):
+        self._spider_name = spider_name
+        self.serialization_module = serialization_module
+        self.engine = engine
+        
+        self._failure_key = f"{spider_name}:failure"
+        self._pending_key = f"{spider_name}:pending"
+        self._waiting_key = f"{spider_name}:waiting"
+        self._mac_pid_key = f"{spider_name}:client:{get_mac_pid()}"
+        
         self.pool = None
-        self._spider_name = None
-        self._failure_key = None
-        self._pending_key = None
-        self._waiting_key = None
         self._last_check_pending_task_time = 0
-        self.module = None
-        self._setting = None
-
+        
         # 统计信息
         self.task_count = 0
         self.task_success = 0
         self.task_failure = 0
 
-    async def init(self, setting):
+    @classmethod
+    async def create(cls, engine):
+        serialization_module = importlib.import_module(engine.setting["SERIALIZATION"])
+        spider_name = engine.setting["NAME"]
+        return cls(spider_name, serialization_module, engine)
+
+    async def init(self):
         """
         初始化db
         """
-        self._setting = setting
-        self._spider_name = setting.NAME
-        self._failure_key = f"{self._spider_name}:failure"
-        self._pending_key = f"{self._spider_name}:pending"
-        self._waiting_key = f"{self._spider_name}:waiting"
-        self._waiting_key = f"{self._spider_name}:waiting"
-        mac_pid_key = f"{self._spider_name}:client:{get_mac_pid()}"
-
-        self.module = importlib.import_module(setting.SERIALIZATION)
-
-        self.pool = await get_aio_redis(setting["REDIS_SETTING"])
+        self.pool = await get_aio_redis(self.engine.setting["REDIS_SETTING"])
         loop = asyncio.get_running_loop()
-        asyncio.run_coroutine_threadsafe(self.set_heart_beat(mac_pid_key), loop=loop)
+        asyncio.run_coroutine_threadsafe(self.set_heart_beat(), loop=loop)
 
-    async def set_heart_beat(self, mac_pid_key):
+    async def set_heart_beat(self):
         while True:
             with await self.pool as conn:
                 data = {"T": self.task_count, "S": self.task_success, "F": self.task_failure}
-                await conn.set(mac_pid_key, ujson.dumps(data), expire=10)
+                await conn.set(self._mac_pid_key, ujson.dumps(data), expire=10)
             await asyncio.sleep(10)
 
     async def clean_queue(self):
@@ -253,7 +240,7 @@ class RedisQueue(BaseQueue):
                     eval_result = await conn.eval(lua, keys=[self._waiting_key, self._pending_key, _min, _max], args=[])
                     if eval_result:
                         self.task_count += 1
-                        return Request.unserialize(eval_result, self.module)
+                        return Request.unserialize(eval_result, self.serialization_module)
         except Exception as e:
             logger.error(f"get request error \n{traceback.format_exc()}")
 
@@ -268,7 +255,7 @@ class RedisQueue(BaseQueue):
         if not isinstance(requests, list):
             requests = [requests]
 
-        str_requests = [_.serialize(self.module) for _ in requests]
+        str_requests = [_.serialize(self.serialization_module) for _ in requests]
         priority_list = [_.priority for _ in requests]
         lua = """
             redis.replicate_commands()
@@ -307,7 +294,7 @@ class RedisQueue(BaseQueue):
         @return:
         """
 
-        request_ser = request.serialize(self.module)
+        request_ser = request.serialize(self.serialization_module)
         with await self.pool as conn:
             if response.ok == 1:
                 # 成功，删除pending队列
@@ -345,8 +332,8 @@ class RedisQueue(BaseQueue):
                 to_waiting_list = []
                 del_pending_list = []
                 for k, v in pending_list.items():
-                    if now_time - int(v) > self._setting["PENDING_THRESHOLD"]:
-                        request = Request.unserialize(k, self.module)
+                    if now_time - int(v) > self.engine.setting["PENDING_THRESHOLD"]:
+                        request = Request.unserialize(k, self.serialization_module)
                         to_waiting_list.extend([request.priority, k])
                         del_pending_list.append(k)
 
@@ -360,105 +347,3 @@ class RedisQueue(BaseQueue):
 
     async def close(self):
         self.pool.close()
-
-
-class RabbitMQQueue(BaseQueue):
-    def __init__(self):
-        self.spider_name = None
-        self.mq_uri = None
-        self.mq_maxsize = None
-        self.pool = None
-        self.queue_name = f"{self.spider_name}_queue"
-        self._last_check_task_status_time = time.time()
-
-        # 从uri提取，用于web api
-        self.mq_user = None
-        self.mq_pwd = None
-        self.mq_api_url = None
-        self.module = None
-
-    async def init(self, setting):
-        self.spider_name = setting.NAME
-        self.mq_uri = setting["MQ_URI"]
-        self.mq_maxsize = setting["MQ_MAXSIZE"]
-        mq_api_port = setting["MQ_API_PORT"]
-        self.pool = RabbitMqPool(self.spider_name)
-        await self.pool.init(self.mq_uri, self.mq_maxsize)
-
-        self.module = importlib.import_module(setting.SERIALIZATION)
-
-        result = urlparse(self.mq_uri).netloc
-        split_list = result.split("@")
-        user_pwd = split_list[0].split(":")
-        self.mq_user = user_pwd[0]
-        self.mq_pwd = user_pwd[1]
-
-        queue_name = f"spider_queue_{self.spider_name}"
-        host = split_list[1].split(":")[0]
-        self.mq_api_url = f"http://{host}:{mq_api_port}/api/queues/{quote_plus('/')}/{queue_name}"
-
-    async def clean_scheduler(self):
-        """
-        清空队列
-        """
-        async with self.pool.channel_pool.acquire() as channel:
-            await channel.queue_delete(queue_name=self.queue_name)
-
-    async def get(self, priority):
-        """
-        从队列中获取一个request
-        """
-
-        message = await self.pool.subscribe(2)
-
-        if message:
-            request = Request.unserialize(message.body.decode(), self.module)
-            request.message = message
-        else:
-            request = None
-        return request
-
-    async def add(self, requests: typing.Union[Request, typing.List[Request]]):
-        """
-        向队列添加多个request
-        @param requests:
-        """
-        if isinstance(requests, Request):
-            requests = [requests]
-
-        for request in requests:
-            request_ser = request.serialize(self.module)
-            await self.pool.publish(request_ser, request.priority)
-
-        return len(requests)
-
-    async def set_result(self, request: Request, response: Response, task_request: Request):
-        """
-        保存结果
-        @param request:
-        @param response:
-        @param task_request:
-        """
-        message: IncomingMessage = request.message
-
-        if response.ok == 1:
-            await message.ack()
-        else:
-            await message.nack(requeue=False)
-
-    async def check_status(self, spider_ins, run_forever=False):
-        # mq要看total队列是否为空，但是aio_pika并不能获取这个值，只能通过web api来获取
-        try:
-            async with aiohttp.ClientSession() as client:
-                auth = aiohttp.BasicAuth(self.mq_user, self.mq_pwd)
-                async with client.request(method='GET', url=self.mq_api_url, auth=auth) as req:
-                    data = await req.json()
-                    total = int(data["messages"])
-
-            if total == 0:
-                spider_ins.run = False
-        except:
-            logger.error("获取mq队列消息数量失败")
-
-    async def close(self):
-        await self.pool.close()

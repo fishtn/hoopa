@@ -1,6 +1,6 @@
 # encoding: utf-8
 from hoopa import const
-from hoopa.middlewares.stats import StatsMiddleware
+from hoopa.downloadermiddlewares.stats import StatsMiddleware
 from .middlewares.common_middleware import CommonMiddleware
 
 NAME = "hoopa"

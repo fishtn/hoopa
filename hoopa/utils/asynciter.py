@@ -10,3 +10,7 @@ class AsyncIter:
     async def __aiter__(self):
         for item in self.items:
             yield item
+
+    async def fun(self):
+        for item in self.items:
+            yield item

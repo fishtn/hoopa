@@ -9,6 +9,8 @@ from importlib import import_module
 
 import arrow
 
+from hoopa.utils.concurrency import run_function_no_concurrency
+
 
 def get_md5(data):
     return hashlib.md5(data.encode(encoding='UTF-8')).hexdigest()
@@ -43,15 +45,20 @@ def load_object(path):
     return obj
 
 
-async def get_cls(path, **kwargs):
-    _cls = load_object(path)
-    obj = _cls()
-    if iscoroutinefunction(obj.init):
-        await obj.init(**kwargs)
+async def create_instance(objcls, *args, **kwargs):
+    if hasattr(objcls, 'create'):
+        instance = await run_function_no_concurrency(objcls.create, *args, **kwargs)
     else:
-        obj.init(**kwargs)
+        instance = objcls()
+    return instance
 
-    return obj
+
+async def create_instance_and_init(objcls, engine, *args, **kwargs):
+    instance = await create_instance(objcls, engine, *args, **kwargs)
+    if hasattr(instance, 'init'):
+        await run_function_no_concurrency(instance.init)
+
+    return instance
 
 
 def request_fingerprint(request):

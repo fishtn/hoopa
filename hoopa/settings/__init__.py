@@ -12,10 +12,31 @@ SETTINGS_PRIORITIES = {
     'spider': 2,
 }
 
-spider_attr_list = ['name', 'worker_numbers', 'download_delay', 'run_forever', 'queue_cls',
-                    'clean_queue', 'priority', 'downloader_cls', 'http_client_kwargs',
-                    'middlewares', 'dupefilter_cls', 'clean_dupefilter', 'dupefilter_setting', 'redis_setting',
-                    'mq_uri', 'mq_api_port', 'mq_maxsize', 'log_level', 'log_write_file', 'serialization']
+spider_attr_list = [
+    'name',
+    'worker_numbers',
+    'download_delay',
+    'pending_threshold',
+    'run_forever',
+    'queue_cls',
+    'clean_queue',
+    'priority',
+    'downloader_cls',
+    'http_client_kwargs',
+    'dupefilter_cls',
+    'clean_dupefilter',
+    'dupefilter_setting',
+    'redis_setting',
+    'stats_cls',
+    'downloader_middlewares',
+    'spider_middlewares',
+    'pipelines',
+    'log_config',
+    'log_level',
+    'log_write_file',
+    'serialization',
+    'interrupt_with_error'
+]
 
 
 class SettingItem:
@@ -96,27 +117,18 @@ class Setting:
             if getattr(spider_ins, name) is not None:
                 self.set(name.upper(), getattr(spider_ins, name), "spider")
 
-        # 根据queue设置去重和统计类型
-        if self.get("QUEUE_CLS") == const.RedisQueue:
-            self.set("DUPEFILTER_CLS", const.RedisDupeFilter, "default")
-            self.set("STATS_CLS", const.RedisStatsCollector, "default")
-
-        self.set("DUPEFILTER_SETTING", self.get("REDIS_SETTING"), "default")
-        self.set("CLEAN_DUPEFILTER", self.get("CLEAN_QUEUE"), "default")
-
         for name in spider_attr_list:
             setattr(spider_ins, name, self.get(name.upper()))
 
     def print_log(self, spider_ins):
         setting_level = "project"
         if not self.project_setting:
-            logger.debug(f"读取配置文件失败, 如果有配置文件，请检查是否配置正确")
             setting_level = "spider"
 
         common_list = ['name', 'worker_numbers', 'download_delay', 'run_forever',
                        'http_client_kwargs', 'log_level', 'log_write_file', 'serialization']
 
-        body = f"setting  max_level--{setting_level}"
+        body = f"\nsetting max level: {setting_level}"
 
         # blank
         blank = " " * 4

@@ -35,11 +35,11 @@ async def run_function(callable_fun,  *args, **kwargs) -> Any:
         return await run_in_threadpool(callable_fun, *args, **kwargs)
 
 
-async def run_function_no_concurrency(func):
+async def run_function_no_concurrency(func,  *args, **kwargs):
     if iscoroutinefunction(func):
-        await func()
+        return await func(*args, **kwargs)
     else:
-        func()
+        return func(*args, **kwargs)
 
 
 class _StopIteration(Exception):

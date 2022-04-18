@@ -1,116 +1,56 @@
 #!/usr/bin/env python
-import traceback
-from collections import deque
+from collections import deque, defaultdict
 
-from loguru import logger
-
-from hoopa.request import Request
-from hoopa.response import Response
-from hoopa.utils.asynciter import AsyncIter
-from hoopa.utils.concurrency import run_function, run_function_no_concurrency
+from hoopa.utils.concurrency import run_function
+from hoopa.utils.helpers import create_instance_and_init
 
 
-class Middleware:
+class MiddlewareManager:
     """中间件管理类"""
 
-    def __init__(self):
-        # request middleware
-        self.request_middleware = deque()
-        # response middleware
-        self.response_middleware = deque()
-        # close method
-        self.close_method = deque()
+    def __init__(self, middlewares, engine=None):
+        self.engine = engine
 
-        # 存放中间件类
-        self.request_middleware_cls = deque()
-        self.response_middleware_cls = deque()
+        # 存放中间件队列的字典
+        self.methods = defaultdict(deque)
+        # 存放中间件名称队列的字典
+        self.names = defaultdict(deque)
 
-    async def init(self, setting):
-        middleware_cls_list = []
-        # 先加载project级别的中间件，如果不存在就加载默认的
-        project_middlewares = setting.get("MIDDLEWARES", "project")
-        if project_middlewares and isinstance(project_middlewares, list):
-            middleware_cls_list.extend(project_middlewares)
-        else:
-            default_middlewares = setting.get("MIDDLEWARES", "default")
-            middleware_cls_list.extend(default_middlewares)
+        for mw in middlewares:
+            self._add_middleware(mw)
 
-        # 加载spider里面的中间件
-        spider_middlewares = setting["MIDDLEWARES"],
-        if spider_middlewares and isinstance(spider_middlewares, list):
-            middleware_cls_list.extend(spider_middlewares)
-
+    @classmethod
+    async def create(cls, engine):
+        mw_list = cls._get_mw_list_from_engine(engine)
         middlewares = []
-
-        for mw_cls in middleware_cls_list:
-            mw = mw_cls()
-            if hasattr(mw, "init") and callable(getattr(mw, "init")):
-                await run_function_no_concurrency(mw.init)
+        for mw_cls in mw_list:
+            mw = await create_instance_and_init(mw_cls, engine)
             middlewares.append(mw)
 
-        self._load_middleware(middlewares)
+        return cls(middlewares, engine)
 
-        return self
+    @classmethod
+    def _get_mw_list_from_engine(cls, setting):
+        raise NotImplementedError
 
-    def _load_middleware(self, middlewares):
-        for mw in middlewares:
-            if hasattr(mw, "process_request") and callable(getattr(mw, "process_request")):
-                self.request_middleware.append(mw.process_request)
-                self.request_middleware_cls.append(mw.__class__.__name__)
+    def _add_middleware(self, mw):
+        """
+        add init and close
+        @param mw: middleware
+        @return:
+        """
+        if hasattr(mw, "init") and callable(getattr(mw, "init")):
+            self.methods["init"].appendleft(mw.init)
 
-            if hasattr(mw, "process_response") and callable(getattr(mw, "process_response")):
-                self.response_middleware.appendleft(mw.process_response)
-                self.response_middleware_cls.appendleft(mw.__class__.__name__)
+        if hasattr(mw, "close") and callable(getattr(mw, "close")):
+            self.methods["close"].appendleft(mw.close)
 
-            if hasattr(mw, "close") and callable(getattr(mw, "close")):
-                self.close_method.appendleft(mw.close)
+    async def _process_chain(self, method_name, obj, *args):
+        for method in self.methods[method_name]:
+            await run_function(method, obj, *args)
 
-    async def download(self, download_func, request, spider_ins):
-        # 加载request中间件, 并调用下载器
-        response = await self.process_request(download_func, request, spider_ins)
-
-        # 加载response中间件
-        process_response_result = await self.process_response(request, response, spider_ins)
-
-        if process_response_result:
-            return process_response_result
-
-        return response
-
-    async def process_request(self, download_func, request: Request, spider_ins):
-        for middleware in self.request_middleware:
-            try:
-                response = await run_function(middleware, request, spider_ins)
-                if response is not None and not isinstance(response, (Response, Request)):
-                    raise Exception(f"<Middleware {middleware.__name__}: must return None, Response or Request")
-                if response:
-                    return AsyncIter([response])
-            except Exception as e:
-                logger.error(f"<Middleware {middleware.__name__}: {e} \n{traceback.format_exc()}>")
-
-        # 执行完request_middleware，调用下载器
-        return await download_func(request)
-
-    async def process_response(self, request: Request, response: Response, spider_ins):
-        # 如果response是request，返回异步生成器
-        if isinstance(response, Request):
-            return AsyncIter([response])
-
-        for middleware in self.response_middleware:
-            try:
-                middleware_response = await run_function(middleware, request, response, spider_ins)
-                if middleware_response is not None and not isinstance(middleware_response, (Response, Request)):
-                    raise Exception(f"<Middleware {middleware.__name__}: must return None, Response or Request")
-                if isinstance(middleware_response, Request):
-                    return AsyncIter([middleware_response])
-                if isinstance(middleware_response, Response):
-                    response = middleware_response
-                    break
-            except Exception as e:
-                logger.error(f"<Middleware {middleware.__name__}: {e} \n{traceback.format_exc()}>")
-
-        return response
+    async def init(self):
+        await self._process_chain("init", self.engine.spider)
 
     async def close(self):
-        for func in self.close_method:
-            await run_function_no_concurrency(func)
+        await self._process_chain("close", self.engine.spider)

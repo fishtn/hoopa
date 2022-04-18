@@ -3,15 +3,10 @@
 去重器
 """
 
-import aioredis
-
 from hoopa.utils.connection import get_aio_redis
 
 
 class BaseDupeFilter:
-    async def init(self, setting):
-        pass
-
     async def get(self, fp):
         pass
 
@@ -25,18 +20,40 @@ class BaseDupeFilter:
         pass
 
 
+class MemoryDupeFilter(BaseDupeFilter):
+    """
+    基于内存去重
+    """
+    def __init__(self, *args, **kwargs):
+        self.pool = set()
+
+    async def get(self, fp):
+        result = fp in self.pool
+        return result is False
+
+    async def add(self, fp):
+        self.pool.add(fp)
+
+
 class RedisDupeFilter(BaseDupeFilter):
     """
     redis去重，pika，tendis等兼容redis的数据库
     """
-    def __init__(self):
-        self.pool = None
-        self.key = None
 
-    async def init(self, setting):
-        dupefilter_setting = setting["DUPEFILTER_SETTING"]
-        self.key = f"{setting['NAME']}:DupeFilter"
-        self.pool = await get_aio_redis(dupefilter_setting)
+    def __init__(self, dupefilter_setting, key, engine):
+        self.pool = None
+        self.dupefilter_setting = dupefilter_setting
+        self.key = key
+        self.engine = engine
+
+    @classmethod
+    async def create(cls, engine):
+        dupefilter_setting = engine.setting["DUPEFILTER_SETTING"]
+        key = f"{engine.setting['NAME']}:DupeFilter"
+        return cls(dupefilter_setting, key, engine)
+
+    async def init(self):
+        self.pool = await get_aio_redis(self.dupefilter_setting)
 
     async def get(self, fp):
         with await self.pool as conn:
@@ -54,27 +71,3 @@ class RedisDupeFilter(BaseDupeFilter):
 
     async def close(self):
         self.pool.close()
-
-
-class MemoryDupeFilter(BaseDupeFilter):
-    """
-    基于内存去重
-    """
-    def __init__(self):
-        self.pool = set()
-
-    async def init(self, setting):
-        pass
-
-    async def get(self, request):
-        result = request in self.pool
-        return result is False
-
-    async def add(self, request):
-        self.pool.add(request)
-
-    async def clean_queue(self):
-        pass
-
-
-

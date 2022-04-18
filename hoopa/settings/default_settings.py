@@ -1,6 +1,11 @@
 # encoding: utf-8
 from hoopa import const
-from hoopa.middlewares.stats import StatsMiddleware
+from hoopa.downloadermiddlewares.handle_http_error import HandleHttpErrorMiddleware
+from hoopa.downloadermiddlewares.handle_http_success import HandleHttpSuccessMiddleware
+from hoopa.downloadermiddlewares.stats import StatsMiddleware
+from hoopa.pipelinemiddlewares.default_pipeline import DefaultPipeline
+from hoopa.pipelinemiddlewares.handle_process_error import HandleProcessError
+from hoopa.spidermiddlewares.handle_parse_error import HandleParseErrorMiddleware
 
 NAME = "hoopa"
 
@@ -12,6 +17,8 @@ DOWNLOAD_DELAY = 3
 PENDING_THRESHOLD = 100
 # 任务完成不停止
 RUN_FOREVER = False
+interrupt_with_error = False
+
 
 # 队列
 # 调度器队列，默认redis, memory, mq
@@ -26,19 +33,36 @@ DOWNLOADER_CLS = const.AiohttpDownloader
 HTTP_CLIENT_KWARGS = None
 
 # 下载中间件
-MIDDLEWARES = [
-    StatsMiddleware
+# 执行顺序： DOWNLOADER_MIDDLEWARES
+DOWNLOADER_MIDDLEWARES = [
 ]
 
-# 默认去重，不删除去重队列, 将根据queue的类型来决定
-DUPEFILTER_CLS = const.MemoryDupeFilter
-# 是否删除去重队列
-CLEAN_DUPEFILTER = None
-# 去重数据库连接配置
-DUPEFILTER_SETTING = None
+DOWNLOADER_MIDDLEWARES_BASE = [
+    StatsMiddleware,
+    HandleHttpErrorMiddleware,
+    HandleHttpSuccessMiddleware,
+]
 
-# 统计器, 默认根据队列决定，可以自行修改
-STATS_CLS = const.MemoryStatsCollector
+
+# 爬虫中间件
+# 执行顺序： DOWNLOADER_MIDDLEWARES
+SPIDER_MIDDLEWARES = [
+]
+
+SPIDER_MIDDLEWARES_BASE = [
+    HandleParseErrorMiddleware
+]
+
+# pipelines
+# 执行顺序：DOWNLOADER_MIDDLEWARES
+PIPELINES = [
+]
+
+PIPELINES_BASE = [
+    DefaultPipeline,
+    HandleProcessError
+]
+
 
 # redis配置信息
 # REDIS_SETTING = "redis://127.0.0.1:6379/0?encoding=utf-8"
@@ -49,16 +73,21 @@ REDIS_SETTING = {
     'password': ''
 }
 
-# MQ
-MQ_MAXSIZE = 10
-MQ_URI = "amqp://guest:guest@127.0.0.1/"
-MQ_API_PORT = 15672
+# 默认去重，不删除去重队列, 将根据queue的类型来决定
+DUPEFILTER_CLS = const.MemoryDupeFilter
+# 是否删除去重队列
+CLEAN_DUPEFILTER = None
+# 去重数据库连接配置
+DUPEFILTER_SETTING = None
 
+# 统计器, 默认内存
+STATS_CLS = const.MemoryStatsCollector
 
 # 其他配置
 # 序列化: pickle, ujson, orjson
 SERIALIZATION = "ujson"
 
 # 日志配置
-LOG_LEVEL = "INFO"
+LOG_CONFIG = None        # 自定义logger.configure的参数，类型为字典
+LOG_LEVEL = "DEBUG"
 LOG_WRITE_FILE = False

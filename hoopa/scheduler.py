@@ -12,43 +12,47 @@ from w3lib.url import is_url
 from hoopa.exceptions import InvalidUrl
 from hoopa.request import Request
 from hoopa.response import Response
-from hoopa.utils.helpers import get_timestamp, get_cls
+from hoopa.utils.helpers import get_timestamp, load_object, create_instance_and_init
 
 
 class Scheduler:
     """
     调度器
     """
-    def __init__(self):
-        self.setting = None
-
-        self.scheduler_queue = None
-        self.dupefilter = None
-        self.stats = None
+    def __init__(self, dupefilter=None, scheduler_queue=None, stats=None, engine=None):
+        self.scheduler_queue = scheduler_queue
+        self.dupefilter = dupefilter
+        self.stats = stats
+        self.engine = engine
 
         self._last_check_status_time = time.time()
 
-    async def init(self, setting):
-        self.setting = setting
-        # 初始化dupefilter
-        self.dupefilter = await get_cls(setting["DUPEFILTER_CLS"], setting=setting)
-        self.scheduler_queue = await get_cls(setting["QUEUE_CLS"], setting=setting)
-        self.stats = await get_cls(self.setting["STATS_CLS"], setting=self.setting)
+    @classmethod
+    async def create(cls, engine):
+        dupefilter_cls = load_object(engine.setting["DUPEFILTER_CLS"])
+        dupefilter = await create_instance_and_init(dupefilter_cls, engine)
 
+        scheduler_queue_cls = load_object(engine.setting["QUEUE_CLS"])
+        scheduler_queue = await create_instance_and_init(scheduler_queue_cls, engine)
+
+        stats_cls = load_object(engine.setting["STATS_CLS"])
+        stats = await create_instance_and_init(stats_cls, engine)
+
+        return cls(dupefilter, scheduler_queue, stats, engine)
+
+    async def init(self):
         # 删除队列
-        if setting["CLEAN_QUEUE"]:
+        if self.engine.setting["CLEAN_QUEUE"]:
             # 获取相关的key
             await self.scheduler_queue.clean_queue()
 
         # 删除去重队列
-        if setting["CLEAN_DUPEFILTER"]:
+        if self.engine.setting["CLEAN_DUPEFILTER"]:
             # 获取相关的key
             await self.dupefilter.clean_queue()
 
         # 初始化爬虫开始时间
         await self.stats.min_value("start_time", int(get_timestamp()))
-
-        return self
 
     async def get(self, priority=None):
         """
@@ -126,7 +130,7 @@ class Scheduler:
         await self.stats.inc_value(f'queue/response_count/priority_{request.priority}/{response.ok}', 1)
 
     async def check_scheduler(self, spider_ins):
-        await self.scheduler_queue.check_status(spider_ins, self.setting["RUN_FOREVER"])
+        await self.scheduler_queue.check_status(spider_ins, self.engine.spider.setting["RUN_FOREVER"])
 
     async def close(self):
         await self.dupefilter.close()

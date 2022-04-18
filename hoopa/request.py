@@ -26,13 +26,13 @@ from hoopa.utils import helpers
 from hoopa.utils.serialization import loads, dumps
 
 
-not_serialize_params = ["session", "message", 'http_kwargs']
+not_serialize_params = ["session", "message", 'http_kwargs', "retries"]
 
 serialize_params = ['url', 'headers', 'method', 'params', 'data', 'json', 'meta', 'dont_filter', 'priority',
                     'callback', 'client_kwargs', 'http_kwargs']
 
 not_kwargs_list = ["session", "message", "callback", "dont_filter", "meta", "priority",
-                   "client_kwargs", "http_kwargs", "retry_times", "retry_delay"]
+                   "client_kwargs", "http_kwargs", "retries", "retry_times", "retry_delay"]
 
 
 class AiohttpParams:
@@ -115,7 +115,6 @@ class Request(AiohttpParams, HttpxParams, RequestParams, OtherParams):
     def __init__(
             self,
             url,
-            callback=None,
             method='get',
             headers=None,
             params=None,
@@ -124,6 +123,7 @@ class Request(AiohttpParams, HttpxParams, RequestParams, OtherParams):
             cookies=None,
             timeout=10,
             allow_redirects=True,
+            callback=None,
             meta=None,
             dont_filter=False,
             priority=0,
@@ -161,6 +161,7 @@ class Request(AiohttpParams, HttpxParams, RequestParams, OtherParams):
 
         self.retry_times = retry_times
         self.retry_delay = retry_delay
+        self.retries = 0
 
     def __getitem__(self, item):
         return getattr(self, item)
@@ -229,4 +230,4 @@ class Request(AiohttpParams, HttpxParams, RequestParams, OtherParams):
         return canonicalize_url(_url)
 
     def __repr__(self):
-        return f"<{self.method} {self.request_url}>"
+        return f"<p{self.priority} {self.method} {self.request_url}>"

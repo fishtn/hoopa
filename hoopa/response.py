@@ -10,6 +10,7 @@ import ujson
 from aiohttp import helpers
 from parsel import Selector
 
+from hoopa.exceptions import Error
 from hoopa.utils.url import get_location_from_history
 
 
@@ -26,6 +27,8 @@ class Response:
         status: int = -1,
         body: bytes = b'',
         text: str = "",
+        error: Error = None,
+        ok: int = 1
     ):
         self._url = url
         self._encoding = encoding
@@ -37,10 +40,9 @@ class Response:
         self._body = body
         self._text = text
 
-        self._error_type: str = ""  # 错误名称
-        self._debug_msg: str = ""  # 调试信息
+        self._error: Error = error  # 错误
 
-        self._ok: int = 1  # 请求状态： 1成功；0失败，会进行重试；-1失败，不进行失败，直接进入失败队列
+        self._ok: int = ok  # 请求状态： 1成功；0失败，会进行重试；-1失败，不进行失败，直接进入失败队列
 
     @property
     def url(self):
@@ -83,20 +85,12 @@ class Response:
         self._ok = value
 
     @property
-    def error_type(self):
-        return self._error_type
+    def error(self):
+        return self._error
 
-    @error_type.setter
-    def error_type(self, value: str):
-        self._error_type = value
-
-    @property
-    def debug_msg(self):
-        return self._debug_msg
-
-    @debug_msg.setter
-    def debug_msg(self, value: str):
-        self._debug_msg = value
+    @error.setter
+    def error(self, value: str):
+        self._error = value
 
     @property
     def headers(self):

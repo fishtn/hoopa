@@ -23,6 +23,7 @@ nav:
   - 框架使用:
       - 代理: ./use/proxy.md
       - 重试: ./use/retry.md
+      - 限制深度: ./use/depth.md
   - 框架其他:
       - 信息收集: ./other/retry.md
       - 去重: ./other/proxy.md

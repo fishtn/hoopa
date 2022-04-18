@@ -6,10 +6,18 @@ from hoopa.exceptions import InvalidLogLevelError
 
 
 class Logging:
+    """
+    日志模块, 使用loguru作为日志模块，弊端就是全局只能存在一个logger，如果想自定义，通过LOG_CONFIG设置
+    """
+
     def __init__(self, setting=None):
-        """
-        """
-        spider_name = setting.get("NAME")
+
+        # 自定义logger的配置
+        configure = setting.get("LOG_CONFIG", None)
+        if configure:
+            logger.configure(**configure)
+            return
+
         log_write_file = setting.get_bool("LOG_WRITE_FILE")
         self.log_level = setting.get("LOG_LEVEL", "INFO").upper()
 
@@ -17,11 +25,14 @@ class Logging:
             raise InvalidLogLevelError(self.log_level)
 
         if self.log_level == "DEBUG":
-            logger_format = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <7}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"
+            logger_format = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <7}</level> | <cyan>{name}" \
+                            "</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"
         else:
-            logger_format = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <7}</level> | <level>{message}</level>"
+            logger_format = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <7}</level> | <level>" \
+                            "{message}</level>"
 
         if log_write_file:
+            spider_name = setting.get("NAME")
             handler = {
                     "sink": "logs/%s.log" % spider_name,
                     "rotation": "00:00",
@@ -54,6 +65,10 @@ class Logging:
 
 
 def ignore_windows_close_loop_error():
+    """
+    忽视windows下关闭事件循环的错误
+    @return:
+    """
     from functools import wraps
     from asyncio.proactor_events import _ProactorBasePipeTransport
 
