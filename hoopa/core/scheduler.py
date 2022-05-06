@@ -88,10 +88,13 @@ class Scheduler:
         # 去重
         request_list = []
         for request in requests:
-            if request.dont_filter or await self.dupefilter.get(request.fp):
+            if request.dont_filter:
                 request_stats[request.priority] = request_stats.get(request.priority, 0) + 1
                 request_list.append(request)
-
+            else:
+                if await self.dupefilter.get(request.fp):
+                    request_stats[request.priority] = request_stats.get(request.priority, 0) + 1
+                    request_list.append(request)
         #  去重后为空
         if not request_list:
             return 0

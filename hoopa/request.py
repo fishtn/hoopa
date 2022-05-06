@@ -125,7 +125,7 @@ class Request(AiohttpParams, HttpxParams, RequestParams, OtherParams):
             allow_redirects=True,
             callback=None,
             meta=None,
-            dont_filter=True,
+            dont_filter=False,
             priority=0,
             retry_times=3,
             retry_delay=0,
@@ -148,7 +148,7 @@ class Request(AiohttpParams, HttpxParams, RequestParams, OtherParams):
 
         self.meta = meta
 
-        # 默认为True，去重
+        # 默认为False，去重
         self.dont_filter = dont_filter
 
         # 优先级，越大优先级越大
