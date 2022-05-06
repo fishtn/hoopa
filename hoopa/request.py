@@ -230,4 +230,4 @@ class Request(AiohttpParams, HttpxParams, RequestParams, OtherParams):
         return canonicalize_url(_url)
 
     def __repr__(self):
-        return f"<p{self.priority} {self.method} {self.request_url}>"
+        return f"<Request p{self.priority} {self.method} {self.request_url}>"

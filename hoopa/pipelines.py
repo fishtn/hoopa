@@ -29,7 +29,9 @@ class PipelineManager(MiddlewareManager):
     async def process_item(self, item, spider_ins):
         _item = deepcopy(item)
 
-        for method in [spider_ins.process_item] + list(self.methods["process_item"]):
+        methods = [spider_ins.process_item] + list(self.methods["process_item"])
+
+        for method in methods:
             # 主要是为了处理spider里面的process_item参数的不同
             if method.__code__.co_argcount == 2:
                 _item = await run_function(method, _item)

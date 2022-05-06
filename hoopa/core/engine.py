@@ -12,9 +12,9 @@ from types import AsyncGeneratorType, CoroutineType
 
 from loguru import logger
 
-from hoopa.downloadermiddleware import DownloaderMiddleware
+from hoopa.core.downloadermiddleware import DownloaderMiddleware
 from hoopa.pipelines import PipelineManager
-from hoopa.spidermiddleware import SpiderMiddleware
+from hoopa.core.spidermiddleware import SpiderMiddleware
 from hoopa.utils.concurrency import run_function, run_function_no_concurrency, iterate_in_threadpool
 from hoopa.utils.log import Logging
 from hoopa.utils.asynciter import AsyncIter
@@ -23,7 +23,7 @@ from hoopa.exceptions import InvalidCallbackResult, Error
 from hoopa.item import Item
 from hoopa.request import Request
 from hoopa.response import Response
-from hoopa.scheduler import Scheduler
+from hoopa.core.scheduler import Scheduler
 from hoopa.utils.project import get_project_settings
 from hoopa.utils import decorators
 
@@ -135,7 +135,7 @@ class Engine:
         @param request: request对象
         """
         # 加载request中间件, 并调用下载器
-        response = await self.downloader_middleware.download(self.downloader.fetch, request, self)
+        response = await self.downloader_middleware.download(self.downloader.fetch, request, self.spider)
 
         # 回调
         callback_result = await self._process_callback(request, response)

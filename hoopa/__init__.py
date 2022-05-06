@@ -17,7 +17,7 @@ __all__ = [
     "HttpxDownloader",
 ]
 
-from hoopa.spider import Spider, RedisSpider
+from hoopa.core.spider import Spider, RedisSpider
 from hoopa.item import Item
 from hoopa.request import Request
 from hoopa.response import Response
@@ -27,4 +27,4 @@ from hoopa.utils.log import Logging
 from hoopa.utils.project import Setting
 from hoopa.downloader import AiohttpDownloader, HttpxDownloader
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"

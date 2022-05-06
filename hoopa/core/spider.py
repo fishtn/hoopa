@@ -11,13 +11,15 @@ import asyncio
 import ujson
 from loguru import logger
 
-from hoopa.engine import Engine
+from hoopa.core.engine import Engine
 from hoopa.settings import const, Setting
 from hoopa.utils.connection import get_aio_redis
 from hoopa.utils.helpers import get_md5
 from hoopa.exceptions import SpiderHookError
 from hoopa.request import Request
 from hoopa.response import Response
+from hoopa.item import Item
+
 
 try:
     import uvloop
@@ -112,8 +114,11 @@ class BaseSpider:
         for url in self.start_urls:
             yield Request(url=url, callback=self.parse)
 
-    async def process_item(self, item):
+    async def process_item(self, item: Item):
         return item
+
+    async def process_request(self, request: Request):
+        return request
 
     async def parse(self, request: Request, response: Response):
         raise NotImplementedError("<!!! parse function is expected !!!>")
@@ -179,12 +184,19 @@ class Spider(BaseSpider, ABC):
         """
         pass
 
-    async def process_item(self, item):
+    async def process_item(self, item: Item):
         """
-        处理item，RedisQueue的时候默认保存到redis。其他情况需要重写此方法
+        处理item，爬虫里面的process_item，可以直接调用
         @param item:
         """
         return item
+
+    async def process_request(self, request):
+        """
+        爬虫里面的载中间件，处理下载前的request
+        @param request:
+        """
+        return request
 
 
 class RedisSpider(BaseSpider, ABC):

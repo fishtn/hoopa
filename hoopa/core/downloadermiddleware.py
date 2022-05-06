@@ -31,8 +31,14 @@ class DownloaderMiddleware(MiddlewareManager):
             self.names["process_exception"].appendleft(mw.__class__.__name__)
 
     async def process_request(self, request: Request, spider_ins):
-        for method in self.methods["process_request"]:
-            response = await run_function(method, request, spider_ins)
+        methods = [spider_ins.process_request] + list(self.methods["process_request"])
+        for method in methods:
+            # 主要是为了处理spider里面的process_item参数的不同
+            if method.__code__.co_argcount == 2:
+                response = await run_function(method, request)
+            else:
+                response = await run_function(method, request, spider_ins)
+
             if response is not None and not isinstance(response, (Response, Request)):
                 raise InvalidOutput(f"<Middleware {method.__name__}: must return None, Response or Request")
             if response:

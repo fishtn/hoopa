@@ -35,7 +35,9 @@ def handle_download_callback_retry():
                 # 重试次数减1
                 request.retries += 1
                 # 统计重试次数
-                await self.stats.inc_value(f"requests/retries/{response.error.name}", 1)
+
+                stats_name = response.error.name if response.error else response.status
+                await self.stats.inc_value(f"requests/retries/{stats_name}", 1)
 
                 # 休眠
                 if request.retry_delay:
