@@ -33,6 +33,10 @@ class UsageError(Exception):
 
 
 class Error:
-    def __init__(self, name=None, stack=None):
-        self.name = str(name)
+    def __init__(self, exception=None, stack=None):
+        self.exception = exception
         self.stack = stack
+
+    @property
+    def name(self):
+        return str(self.exception)

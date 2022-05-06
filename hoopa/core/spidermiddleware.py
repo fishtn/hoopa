@@ -52,9 +52,9 @@ class SpiderMiddleware(MiddlewareManager):
 
         return result
 
-    async def process_exception(self, request, response, exception, spider_ins):
+    async def process_exception(self, request, response, error, spider_ins):
         for method in self.methods['process_exception']:
-            middleware_response = await run_function(method, request, response, exception, spider_ins)
+            middleware_response = await run_function(method, request, response, error, spider_ins)
             if middleware_response is not None and not isinstance(middleware_response, bool):
                 raise InvalidOutput(
                     f"Middleware {method.__self__.__class__.__name__}"
@@ -63,7 +63,7 @@ class SpiderMiddleware(MiddlewareManager):
                 )
             if middleware_response:
                 return
-        raise exception
+        raise error.exception
 
     async def scrape_response(self, parse_func, request, response, spider_ins):
         # 调用中间件

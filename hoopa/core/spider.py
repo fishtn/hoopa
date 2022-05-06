@@ -48,7 +48,7 @@ class BaseSpider:
     - dupefilter_cls: 去重器路径，默认MemoryDupeFilter，另外有RedisDupeFilter
     - clean_dupefilter: 清空去重器，默认等于clean_queue
     - dupefilter_setting: 去重器设置，默认等于redis_setting
-    - redis_setting: redis连接配置，可以是字典，也可以是uri
+    - redis_setting: redis连接配置，可以是字典，也可以是uri 例如："redis://127.0.0.1:6379/0?encoding=utf-8"
     - serialization: 序列化模块，默认ujson，可选pickle
     - log_config： 自定义logger.configure的参数，类型为字典
     - log_level： 日志级别，默认INFO

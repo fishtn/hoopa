@@ -77,7 +77,7 @@ async def spider_sleep(download_delay):
     @return:
     """
     # 休眠间隔, 加入随机值选项
-    if isinstance(download_delay, list):
+    if isinstance(download_delay, (list, tuple)):
         download_delay = random.uniform(download_delay[0], download_delay[1])
     else:
         download_delay = download_delay
