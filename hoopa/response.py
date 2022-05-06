@@ -97,6 +97,10 @@ class Response:
         return self._headers
 
     @property
+    def body(self):
+        return self._body
+
+    @property
     def cookies(self):
         return self._cookies
 
@@ -123,7 +127,7 @@ class Response:
 
     def serialize(self):
         request_dict = {}
-        for item in ["url", "status", "body", 'text', 'encoding', "ok", "error_type", "debug_msg"]:
+        for item in ["url", "status", "body", 'text', 'encoding', "ok"]:
             request_dict.setdefault(item, getattr(self, item))
         return request_dict
 

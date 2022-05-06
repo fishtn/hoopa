@@ -210,19 +210,18 @@ class RedisSpider(BaseSpider, ABC):
         self.setting.set("DUPEFILTER_SETTING", self.setting.get("REDIS_SETTING"), "default")
         self.setting.set("CLEAN_DUPEFILTER", self.setting.get("CLEAN_QUEUE"), "default")
 
-    async def process_item(self, item_list: list):
+    async def process_item(self, item: Item):
         """
         处理item，RedisQueue的时候默认保存到redis。其他情况需要重写此方法
         @rtype: bool
-        @param item_list:
+        @param item:
         """
-        for item in item_list:
-            item_str_json = ujson.dumps(item.__dict__)
-            item_md5 = get_md5(item_str_json)
+        item_str_json = ujson.dumps(item.__dict__)
+        item_md5 = get_md5(item_str_json)
 
-            with self.redis_pool as conn:
-                result = await conn.hmset(f"{self.name}:{item.item_name}", item_md5, item_str_json)
-            if result:
-                logger.info(f"{item.__dict__}")
+        with await self.redis_pool as conn:
+            result = await conn.hmset(f"{self.name}:{item.item_name}", item_md5, item_str_json)
+        if result:
+            logger.info(f"{item.__dict__}")
 
 
