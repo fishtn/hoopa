@@ -17,7 +17,9 @@ DOWNLOAD_DELAY = 3
 PENDING_THRESHOLD = 100
 # 任务完成不停止
 RUN_FOREVER = False
-interrupt_with_error = False
+INTERRUPT_WITH_ERROR = False
+# 失败队列重新爬取
+FAILURE_TO_WAITING = False
 
 
 # 队列

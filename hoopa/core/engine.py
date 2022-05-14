@@ -7,6 +7,7 @@ import inspect
 import operator
 import traceback
 import typing
+from copy import deepcopy
 from signal import SIGINT, SIGTERM
 from types import AsyncGeneratorType, CoroutineType
 
@@ -79,6 +80,10 @@ class Engine:
 
         # 打印配置日志
         self.setting.print_log(self)
+
+        # failure_to_waiting
+        if self.spider.failure_to_waiting:
+            await self.scheduler.failure_to_waiting(self.spider)
 
         # 处理start_requests
         await self._handle_start_requests()
@@ -153,7 +158,8 @@ class Engine:
         @param request: request对象
         """
         response = Response()
-        task_request = request.copy()
+        # task_request = request.copy()
+        task_request = deepcopy(request)
         try:
             # 处理请求和回调
             response = await self.handle_download_callback(task_request)

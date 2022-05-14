@@ -135,6 +135,9 @@ class Scheduler:
     async def check_scheduler(self, spider_ins):
         await self.scheduler_queue.check_status(spider_ins, self.engine.spider.setting["RUN_FOREVER"])
 
+    async def failure_to_waiting(self, spider_ins):
+        await self.scheduler_queue.failure_to_waiting(spider_ins)
+
     async def close(self):
         await self.dupefilter.close()
         await self.scheduler_queue.close()

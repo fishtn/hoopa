@@ -56,6 +56,7 @@ class BaseSpider:
     - settings_path： 默认配置文件位置
     - start_urls： 起始url列表
     - interrupt_with_error： 出现错误时推出，默认False
+    - failure_to_waiting：  将错误队列放入等待队列，默认False
     """
     name: str = "hoopa"
     worker_numbers: int = None
@@ -79,6 +80,7 @@ class BaseSpider:
     log_level: str = None
     log_write_file: bool = None
     serialization: bool = None
+    failure_to_waiting: bool = None
     settings_path: str = "config.settings"
     start_urls: list = []
     interrupt_with_error: bool = None
@@ -99,6 +101,9 @@ class BaseSpider:
                 raise SpiderHookError(f"<Hook {hook_func.__name__}: {e}")
 
     async def open_spider(self):
+        pass
+
+    async def close_spider(self):
         pass
 
     async def init(self):

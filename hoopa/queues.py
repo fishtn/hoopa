@@ -301,11 +301,10 @@ class RedisQueue(BaseQueue):
                 await conn.hdel(self._pending_key, request_ser)
                 self.task_success += 1
             else:
-                failure_response = serialize_request_and_response(task_request, response)
                 # 失败, 从等待队列中删除，并放到失败队列
                 pipe = conn.pipeline()
                 pipe.hdel(self._pending_key, request_ser)
-                pipe.hset(self._failure_key, request_ser, failure_response)
+                pipe.hset(self._failure_key, request_ser, response.status)
                 await pipe.execute()
                 self.task_failure += 1
 
@@ -344,6 +343,32 @@ class RedisQueue(BaseQueue):
                     result = await pipe.execute()
 
                     logger.info(f"pendings: {len(pending_list)}, del_pending: {result[1]}, add_waitings: {result[0]}")
+
+    async def failure_to_waiting(self, spider_ins):
+
+        with await self.pool as conn:
+            failure_list: dict = await conn.hgetall(self._failure_key)
+
+        if failure_list:
+            zadd_list = []
+            hdel_list = []
+            for key, value in failure_list.items():
+                request = Request.unserialize(key)
+                zadd_list.extend([request.weight, key])
+                hdel_list.append(key)
+
+            if zadd_list:
+                with await self.pool as conn:
+                    try:
+                        pipe = conn.pipeline()
+                        pipe.zadd(self._waiting_key, *zadd_list)
+                        pipe.hdel(self._failure_key, *hdel_list)
+                        await pipe.execute()
+                    except:
+                        logger.debug(traceback.format_exc())
+                        logger.error("failure_to_waiting error")
+
+                    logger.info(f"failure_to_waiting, result: {len(hdel_list)}")
 
     async def close(self):
         self.pool.close()
