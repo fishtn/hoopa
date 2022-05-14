@@ -354,7 +354,7 @@ class RedisQueue(BaseQueue):
             hdel_list = []
             for key, value in failure_list.items():
                 request = Request.unserialize(key)
-                zadd_list.extend([request.weight, key])
+                zadd_list.extend([request.priority, key])
                 hdel_list.append(key)
 
             if zadd_list:
