@@ -20,6 +20,7 @@ RUN_FOREVER = False
 INTERRUPT_WITH_ERROR = False
 # 失败队列重新爬取
 FAILURE_TO_WAITING = False
+PUSH_NUMBER = 100
 
 
 # 队列

@@ -57,6 +57,8 @@ class BaseSpider:
     - start_urls： 起始url列表
     - interrupt_with_error： 出现错误时推出，默认False
     - failure_to_waiting：  将错误队列放入等待队列，默认False
+    - push_number：  请求推送到redis单次最大数量
+    - run:  控制爬虫停止，默认为True运行，设置为False停止
     """
     name: str = "hoopa"
     worker_numbers: int = None
@@ -80,11 +82,13 @@ class BaseSpider:
     log_level: str = None
     log_write_file: bool = None
     serialization: bool = None
-    failure_to_waiting: bool = None
     settings_path: str = "config.settings"
     start_urls: list = []
     interrupt_with_error: bool = None
     setting: Setting = None
+    push_number: int = None
+    failure_to_waiting: bool = None
+    run: bool = None
 
     async def run_spider_hook(self, hook_func):
         """

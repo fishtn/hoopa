@@ -16,7 +16,6 @@ from hoopa.request import Request
 from hoopa.response import Response
 from hoopa.utils.connection import get_aio_redis
 from hoopa.utils.helpers import get_timestamp, get_priority_list, get_mac_pid
-from hoopa.utils.serialization import serialize_request_and_response
 
 
 class BaseQueue:
@@ -161,7 +160,7 @@ class RedisQueue(BaseQueue):
         self._failure_key = f"{spider_name}:failure"
         self._pending_key = f"{spider_name}:pending"
         self._waiting_key = f"{spider_name}:waiting"
-        self._mac_pid_key = f"{spider_name}:client:{get_mac_pid()}"
+        self._client_key = f"{spider_name}:client"
         
         self.pool = None
         self._last_check_pending_task_time = 0
@@ -186,10 +185,31 @@ class RedisQueue(BaseQueue):
         asyncio.run_coroutine_threadsafe(self.set_heart_beat(), loop=loop)
 
     async def set_heart_beat(self):
+        start_time = int(time.time())
+        last_time_requests_count = 0
         while True:
-            with await self.pool as conn:
-                data = {"T": self.task_count, "S": self.task_success, "F": self.task_failure}
-                await conn.set(self._mac_pid_key, ujson.dumps(data), expire=10)
+
+            now_time = int(time.time())
+            run_time = int(now_time - start_time)
+            if run_time:
+                requests_count = self.engine.requests_count
+                requests_per_second_all = round(requests_count / run_time, 1)
+                requests_per_second_10s = round((requests_count - last_time_requests_count) / 10, 1)
+                last_time_requests_count = requests_count
+                with await self.pool as conn:
+                    data = {
+                        "总数": self.task_count,
+                        "成功": self.task_success,
+                        "失败": self.task_failure,
+                        "请求": self.engine.requests_count,
+                        "每秒请求(全部)": requests_per_second_all,
+                        "每秒请求(10s)": requests_per_second_10s,
+                        "上报时间": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(now_time)),
+                    }
+                    dumps_data = ujson.dumps(data, ensure_ascii=False)
+                    logger.info(f"统计: {dumps_data}")
+                    await conn.hset(self._client_key, get_mac_pid(), dumps_data)
+
             await asyncio.sleep(10)
 
     async def clean_queue(self):

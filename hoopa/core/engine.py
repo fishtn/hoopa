@@ -43,9 +43,11 @@ class Engine:
         self.spider = spider
 
         # 循环获取request，默认True
-        self.run = True
+        self.spider.run = True
         # 协程任务list
         self.task_dict = {}
+
+        self.requests_count = 0
 
         # 读取配置文件，如果config下面没有配置文件，那么返回默认配置
         setting = get_project_settings(spider.settings_path)
@@ -139,6 +141,9 @@ class Engine:
         处理请求
         @param request: request对象
         """
+        # 请求数+1
+        self.requests_count += 1
+
         # 加载request中间件, 并调用下载器
         response = await self.downloader_middleware.download(self.downloader.fetch, request, self.spider)
 
@@ -192,7 +197,7 @@ class Engine:
                     request_list.append(callback_result)
 
         # 处理新请求, 默认50个请求批量存储
-        request_list_split = split_list(request_list, 50)
+        request_list_split = split_list(request_list, self.spider.push_number)
         for item_requests in request_list_split:
             count = await self.scheduler.add(item_requests)
             logger.debug(f"start_requests push request {count}")
@@ -204,10 +209,10 @@ class Engine:
         # 初始化
         await self._load()
 
-        if self.run:
+        if self.spider.run:
             logger.info(f"Spider start")
 
-        while self.run:
+        while self.spider.run:
             # 新增的协程数 = 最大协程数 - 当前协程数
             add_task_count = self.spider.worker_numbers - len(self.task_dict)
 

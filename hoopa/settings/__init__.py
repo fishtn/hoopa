@@ -35,7 +35,9 @@ spider_attr_list = [
     'log_level',
     'log_write_file',
     'serialization',
-    'interrupt_with_error'
+    'interrupt_with_error',
+    'push_number',
+    'failure_to_waiting'
 ]
 
 
