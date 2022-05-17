@@ -5,6 +5,7 @@
 import asyncio
 import inspect
 import operator
+import time
 import traceback
 import typing
 from copy import deepcopy
@@ -44,9 +45,13 @@ class Engine:
 
         # 循环获取request，默认True
         self.spider.run = True
-        # 协程任务list
-        self.task_dict = {}
 
+        self.request_queue: asyncio.Queue = asyncio.Queue()
+
+        # 重试中的个数
+        self.retrying = 0
+
+        # 请求数统计
         self.requests_count = 0
 
         # 读取配置文件，如果config下面没有配置文件，那么返回默认配置
@@ -156,14 +161,12 @@ class Engine:
         return response
 
     @decorators.timeout_it()
-    async def _process_task(self, request: Request, task_id):
+    async def _process_task(self, request: Request):
         """
         处理请求
-        @param task_id:
         @param request: request对象
         """
         response = Response()
-        # task_request = request.copy()
         task_request = deepcopy(request)
         try:
             # 处理请求和回调
@@ -202,6 +205,36 @@ class Engine:
             count = await self.scheduler.add(item_requests)
             logger.debug(f"start_requests push request {count}")
 
+    async def start_worker(self):
+        """
+        Start spider worker
+        :return:
+        """
+        while True:
+            request_item = await self.request_queue.get()
+            asyncio.run_coroutine_threadsafe(self._process_task(request_item), loop=self.loop)
+            self.request_queue.task_done()
+
+    async def consumer(self):
+        logger.info(f"consumer started")
+        last_time = time.time()
+        while self.spider.run:
+            qsize = self.request_queue.qsize()
+            add_task_count = max(self.spider.worker_numbers - qsize - self.retrying, 0)
+            # logger.error(f"add_task_count: {add_task_count} {qsize} {self.retrying}")
+            for _ in range(add_task_count):
+                request_item = await self.scheduler.get(self.spider.priority)
+                if request_item is None:
+                    break
+                self.request_queue.put_nowait(request_item)
+
+            # 休眠
+            sleep_second = max(self.spider.download_delay - (time.time() - last_time), 0.01)
+            # logger.error(f"睡眠：{sleep_second}")
+            await asyncio.sleep(sleep_second)
+            last_time = time.time()
+            await self.scheduler.check_scheduler(self.spider)
+
     async def _start_spider(self):
         """
         启动爬虫，不断从队列中获取请求任务
@@ -212,25 +245,17 @@ class Engine:
         if self.spider.run:
             logger.info(f"Spider start")
 
-        while self.spider.run:
-            # 新增的协程数 = 最大协程数 - 当前协程数
-            add_task_count = self.spider.worker_numbers - len(self.task_dict)
+        workers = [
+            asyncio.ensure_future(self.start_worker())
+            for _ in range(self.spider.worker_numbers * 3)
+        ]
 
-            for _ in range(add_task_count):
-                request = await self.scheduler.get(self.setting["PRIORITY"])
-                if request is None:
-                    break
+        for worker in workers:
+            logger.info(f"Worker started: {id(worker)}")
 
-                new_task_id = get_uuid()
-                # 动态添加协程，上限是设置并发数
-                asyncio.run_coroutine_threadsafe(self._process_task(request, new_task_id), loop=self.loop)
-                self.task_dict.setdefault(new_task_id, get_timestamp())
+        await self.request_queue.join()
 
-            # 休眠
-            await spider_sleep(self.setting["DOWNLOAD_DELAY"])
-
-            # 检查爬虫状态
-            await self.scheduler.check_scheduler(self)
+        await self.consumer()
 
         await self.finish()
 

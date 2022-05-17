@@ -34,8 +34,8 @@ class BaseSpider:
 
     Public attributes:
     - name: 爬虫名称.
-    - worker_numbers: 最大协程数.
-    - download_delay: 爬虫请求间隔.
+    - worker_numbers: worker_numbers任务数，每download_delay秒worker_numbers个， 默认每1秒1个
+    - download_delay: 爬虫请求间隔，每download_delay秒worker_numbers个， 默认每1秒1个
     - pending_threshold: pending超时时间.
     - run_forever: 任务完成不停止, 默认False.
     - queue_cls: 任务队列路径，默认：const.MemoryQueue(hoopa.queues.MemoryQueue).

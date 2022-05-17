@@ -14,6 +14,7 @@ from aiohttp.typedefs import StrOrURL, LooseCookies, LooseHeaders
 from httpx._types import (AuthTypes, CookieTypes, HeaderTypes, QueryParamTypes, RequestContent, RequestData,
                           RequestFiles, TimeoutTypes, URLTypes,)
 from httpx._config import (UNSET, UnsetType)
+from loguru import logger
 
 from w3lib.url import add_or_replace_parameters, canonicalize_url
 
@@ -128,7 +129,7 @@ class Request(AiohttpParams, HttpxParams, RequestParams, OtherParams):
             dont_filter=False,
             priority=0,
             retry_times=3,
-            retry_delay=0,
+            retry_delay=1,
             client_kwargs=None,
             **_http_kwargs
     ):

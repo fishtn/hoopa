@@ -144,7 +144,7 @@ class MemoryQueue(BaseQueue):
             await self.add(request)
 
     async def check_status(self, spider_ins, run_forever=False):
-        if len(self.pending) == 0 and self.waiting.empty():
+        if not self.pending and self.waiting.empty():
             spider_ins.run = False
 
 
@@ -334,7 +334,6 @@ class RedisQueue(BaseQueue):
             waiting_len = await conn.zcard(self._waiting_key)
             if not pending_len and not waiting_len:
                 spider_ins.run = False
-                return
 
         await self.check_pending_task()
 
