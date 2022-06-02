@@ -23,12 +23,12 @@ class DownloaderMiddleware(MiddlewareManager):
             self.names["process_request"].append(mw.__class__.__name__)
 
         if hasattr(mw, "process_response") and callable(getattr(mw, "process_response")):
-            self.methods["process_response"].appendleft(mw.process_response)
-            self.names["process_response"].appendleft(mw.__class__.__name__)
+            self.methods["process_response"].append(mw.process_response)
+            self.names["process_response"].append(mw.__class__.__name__)
 
         if hasattr(mw, "process_exception") and callable(getattr(mw, "process_exception")):
-            self.methods["process_exception"].appendleft(mw.process_exception)
-            self.names["process_exception"].appendleft(mw.__class__.__name__)
+            self.methods["process_exception"].append(mw.process_exception)
+            self.names["process_exception"].append(mw.__class__.__name__)
 
     async def process_request(self, request: Request, spider_ins):
         methods = [spider_ins.process_request] + list(self.methods["process_request"])

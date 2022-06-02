@@ -20,8 +20,8 @@ from hoopa.core.spidermiddleware import SpiderMiddleware
 from hoopa.utils.concurrency import run_function, run_function_no_concurrency, iterate_in_threadpool
 from hoopa.utils.log import Logging
 from hoopa.utils.asynciter import AsyncIter
-from hoopa.utils.helpers import spider_sleep, split_list, get_uuid, get_timestamp, load_object, create_instance_and_init
-from hoopa.exceptions import InvalidCallbackResult, Error
+from hoopa.utils.helpers import split_list, get_timestamp, load_object, create_instance_and_init
+from hoopa.exceptions import InvalidCallbackResult, Error, InvalidCallback
 from hoopa.item import Item
 from hoopa.request import Request
 from hoopa.response import Response
@@ -122,7 +122,10 @@ class Engine:
             return
 
         # 响应码在处理列表内，处理响应
-        process_func = getattr(self.spider, request.callback, None)
+        try:
+            process_func = getattr(self.spider, request.callback, None)
+        except:
+            raise InvalidCallback("解析函数错误")
 
         try:
             if process_func is not None:
@@ -216,12 +219,13 @@ class Engine:
             self.request_queue.task_done()
 
     async def consumer(self):
-        logger.info(f"consumer started")
+        logger.debug(f"consumer started")
         last_time = time.time()
         while self.spider.run:
             qsize = self.request_queue.qsize()
             add_task_count = max(self.spider.worker_numbers - qsize - self.retrying, 0)
             # logger.error(f"add_task_count: {add_task_count} {qsize} {self.retrying}")
+            add_task_count = min(add_task_count, self.spider.worker_numbers)
             for _ in range(add_task_count):
                 request_item = await self.scheduler.get(self.spider.priority)
                 if request_item is None:
@@ -230,7 +234,7 @@ class Engine:
 
             # 休眠
             sleep_second = max(self.spider.download_delay - (time.time() - last_time), 0.01)
-            # logger.error(f"睡眠：{sleep_second}")
+
             await asyncio.sleep(sleep_second)
             last_time = time.time()
             await self.scheduler.check_scheduler(self.spider)
@@ -250,8 +254,7 @@ class Engine:
             for _ in range(self.spider.worker_numbers * 3)
         ]
 
-        for worker in workers:
-            logger.info(f"Worker started: {id(worker)}")
+        logger.debug(f"Worker started: {len(workers)}")
 
         await self.request_queue.join()
 

@@ -6,8 +6,7 @@ from hoopa.exceptions import Error, InvalidOutput
 from hoopa.middleware import MiddlewareManager
 from hoopa.request import Request
 from hoopa.response import Response
-from hoopa.utils.asynciter import AsyncIter
-from hoopa.utils.concurrency import run_function, run_function_no_concurrency
+from hoopa.utils.concurrency import run_function
 
 
 class SpiderMiddleware(MiddlewareManager):
@@ -15,7 +14,7 @@ class SpiderMiddleware(MiddlewareManager):
 
     @classmethod
     def _get_mw_list_from_engine(cls, engine):
-        return engine.setting.get("SPIDER_MIDDLEWARES_BASE") + engine.setting.get("SPIDER_MIDDLEWARES")
+        return engine.setting.get("SPIDER_MIDDLEWARES") + engine.setting.get("SPIDER_MIDDLEWARES_BASE")
 
     def _add_middleware(self, mw):
         super()._add_middleware(mw)

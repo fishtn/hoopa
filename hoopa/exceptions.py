@@ -16,6 +16,10 @@ class InvalidCallbackResult(Exception):
     pass
 
 
+class InvalidCallback(Exception):
+    pass
+
+
 class InvalidLogLevelError(Exception):
     pass
 

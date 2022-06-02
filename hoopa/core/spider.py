@@ -205,7 +205,7 @@ class Spider(BaseSpider, ABC):
         爬虫里面的载中间件，处理下载前的request
         @param request:
         """
-        return request
+        pass
 
 
 class RedisSpider(BaseSpider, ABC):
@@ -225,12 +225,12 @@ class RedisSpider(BaseSpider, ABC):
         @rtype: bool
         @param item:
         """
-        item_str_json = ujson.dumps(item.__dict__)
+        item_str_json = ujson.dumps(item.values)
         item_md5 = get_md5(item_str_json)
 
         with await self.redis_pool as conn:
             result = await conn.hmset(f"{self.name}:{item.item_name}", item_md5, item_str_json)
         if result:
-            logger.info(f"{item.__dict__}")
+            logger.info(f"{item.values}")
 
 

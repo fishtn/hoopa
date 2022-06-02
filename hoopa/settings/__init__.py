@@ -122,7 +122,7 @@ class Setting:
         for name in spider_attr_list:
             setattr(spider_ins, name, self.get(name.upper()))
 
-    def print_log(self, spider_ins):
+    def print_log(self, engine_ins):
         setting_level = "project"
         if not self.project_setting:
             setting_level = "spider"
@@ -135,41 +135,67 @@ class Setting:
         # blank
         blank = " " * 4
         for item in common_list:
-            body += f"\n{blank}{item:25s}: {self.get(item.upper())}"
+            body += f"\n{blank}{item:28s}: {self.get(item.upper())}"
 
         queue_cls = self.get("QUEUE_CLS")
         queue_cls_str = const_map.get(queue_cls, queue_cls)
-        body += f"\n{blank}{'queue_cls':25s}: {queue_cls_str}"
+        body += f"\n{blank}{'queue_cls':28s}: {queue_cls_str}"
         if queue_cls == const.RedisQueue:
-            body += f"\n{blank}{'clean_queue':25s}: {self.get('CLEAN_QUEUE')}"
-            body += f"\n{blank}{'priority':25s}: {self.get('PRIORITY')}"
+            body += f"\n{blank}{'clean_queue':28s}: {self.get('CLEAN_QUEUE')}"
+            body += f"\n{blank}{'priority':28s}: {self.get('PRIORITY')}"
         elif queue_cls == const.RabbitMQQueue:
-            body += f"\n{blank}{'clean_queue':25s}: {self.get('CLEAN_QUEUE')}"
+            body += f"\n{blank}{'clean_queue':28s}: {self.get('CLEAN_QUEUE')}"
 
         dupefilter_cls = self.get("DUPEFILTER_CLS")
         dupefilter_cls_str = const_map.get(dupefilter_cls, dupefilter_cls)
-        body += f"\n{blank}{'dupefilter_cls':25s}: {dupefilter_cls_str}"
+        body += f"\n{blank}{'dupefilter_cls':28s}: {dupefilter_cls_str}"
         if dupefilter_cls == const.RedisDupeFilter:
-            body += f"\n{blank}{'clean_dupefilter':25s}: {self.get('CLEAN_DUPEFILTER')}"
+            body += f"\n{blank}{'clean_dupefilter':28s}: {self.get('CLEAN_DUPEFILTER')}"
 
         stats_cls = self.get("STATS_CLS")
         stats_cls_str = const_map.get(stats_cls, stats_cls)
-        body += f"\n{blank}{'stats_cls':25s}: {stats_cls_str}"
+        body += f"\n{blank}{'stats_cls':28s}: {stats_cls_str}"
 
         downloader_cls = self.get("DOWNLOADER_CLS")
         downloader_cls_str = const_map.get(downloader_cls, downloader_cls)
-        body += f"\n{blank}{'downloader_cls':25s}: {downloader_cls_str}"
+        body += f"\n{blank}{'downloader_cls':28s}: {downloader_cls_str}"
 
-        if getattr(spider_ins, "middleware", None):
-            request_middleware = []
-            for item in spider_ins.middleware.request_middleware_cls:
-                request_middleware.append(item)
+        downloader_middlewares = []
+        spider_middlewares = []
+        pipelines = []
+        for item in self.get("DOWNLOADER_MIDDLEWARES"):
+            downloader_middlewares.append(item.__module__)
 
-            response_middleware = []
-            for item in spider_ins.middleware.response_middleware_cls:
-                response_middleware.append(item)
+        for item in self.get("SPIDER_MIDDLEWARES"):
+            spider_middlewares.append(item.__module__)
 
-            body += f"\n{blank}{'request_middleware':25s}: {request_middleware}"
-            body += f"\n{blank}{'response_middleware':25s}: {response_middleware}"
+        for item in self.get("PIPELINES"):
+            pipelines.append(item.__module__)
+
+        body += f"\n{blank}{'downloader_middlewares':28s}: {downloader_middlewares}"
+        body += f"\n{blank}{'spider_middlewares':28s}: {spider_middlewares}"
+        body += f"\n{blank}{'pipelines':28s}: {pipelines}"
+
+        log_level = self.get("LOG_LEVEL").upper()
+        logger.info(log_level)
+        if log_level == "DEBUG":
+            downloader_middlewares_base = []
+            spider_middlewares_base = []
+            pipelines_base = []
+
+            for item in self.get("DOWNLOADER_MIDDLEWARES_BASE"):
+                downloader_middlewares_base.append(item.__module__)
+
+            for item in self.get("SPIDER_MIDDLEWARES_BASE"):
+                spider_middlewares_base.append(item.__module__)
+
+            for item in self.get("PIPELINES_BASE"):
+                pipelines_base.append(item.__module__)
+
+            body += f"\n{blank}{'downloader_middlewares_base':28s}: {downloader_middlewares_base}"
+            body += f"\n{blank}{'spider_middlewares_base':28s}: {spider_middlewares_base}"
+            body += f"\n{blank}{'pipelines_base':28s}: {pipelines_base}"
 
         logger.info(body)
+
+

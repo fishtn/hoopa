@@ -5,7 +5,7 @@
 
 **hoopa** 是一个轻量、快速的异步分布式爬虫框架
 
-- 支持基于内存、redis、rabbitmq的等优先级队列
+- 支持内存、redis的优先级队列
 - 支持aiohttp、 httpx、requests等HTTP库
 - 支持断点续传
   

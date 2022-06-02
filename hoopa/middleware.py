@@ -8,7 +8,7 @@ from hoopa.utils.helpers import create_instance_and_init
 class MiddlewareManager:
     """中间件管理类"""
 
-    def __init__(self, middlewares, engine=None):
+    def __init__(self,  middlewares, engine=None):
         self.engine = engine
 
         # 存放中间件队列的字典
@@ -22,6 +22,7 @@ class MiddlewareManager:
     @classmethod
     async def create(cls, engine):
         mw_list = cls._get_mw_list_from_engine(engine)
+
         middlewares = []
         for mw_cls in mw_list:
             mw = await create_instance_and_init(mw_cls, engine)

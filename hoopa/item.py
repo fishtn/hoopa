@@ -1,6 +1,7 @@
 """
 Item，数据对象需要继承这个
 """
+from copy import deepcopy
 from typing import Dict
 
 
@@ -11,18 +12,20 @@ class Item:
         @param data: 字典，可以直接把字典设置到item
         """
         if item_name:
-            self.__class__.__name__ = item_name
+            self._item_name = item_name
 
         if data:
             self.__dict__.update(**data)
 
     @property
     def values(self):
-        return self.__dict__
+        data = deepcopy(self.__dict__)
+        data.pop("_item_name")
+        return data
 
     @property
     def item_name(self):
-        return self.__class__.__name__
+        return self._item_name
 
     def __getitem__(self, key):
         return self.__dict__[key]
