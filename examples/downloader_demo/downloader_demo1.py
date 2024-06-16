@@ -11,7 +11,7 @@ class DownloaderDemoSpider(hoopa.Spider):
     downloader_cls = const.RequestsDownloader
     # downloader_cls = const.HttpxDownloader
     # downloader_cls = const.AiohttpDownloader
-    log_level = "debug"
+    log_level = "info"
 
     def parse(self, request, response):
         data = response.json()
@@ -22,9 +22,10 @@ class DownloaderDemoSpider(hoopa.Spider):
             data_item.type = slide["type"]
             yield data_item
 
-    def process_item(self, item_list: list):
-        for item in item_list:
-            print(item)
+    def process_item(self, item):
+        print(item)
+        # for item in item_list:
+        #     print(item)
 
 
 if __name__ == "__main__":

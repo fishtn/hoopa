@@ -15,7 +15,8 @@ class DemoMiddleware:
 class MiddlewareDemoSpider(hoopa.Spider):
     name = "middleware_demo"
     start_urls = ["http://httpbin.org/json"]
-    middlewares = [DemoMiddleware]
+    downloader_middlewares = [DemoMiddleware]
+    log_level = 'error'
 
     def parse(self, request, response):
         data = response.json()
@@ -26,9 +27,8 @@ class MiddlewareDemoSpider(hoopa.Spider):
             data_item.type = slide["type"]
             yield data_item
 
-    def process_item(self, item_list: list):
-        for item in item_list:
-            print(item)
+    def process_item(self, item):
+        print(item)
 
 
 if __name__ == "__main__":

@@ -332,8 +332,8 @@ class Engine:
     async def cancel_all_tasks(self, _signal=None):
         logger.info(f"Stopping spider: {self.spider.name}")
         tasks = []
-        for task in asyncio.Task.all_tasks():
-            if task is not asyncio.tasks.Task.current_task():
+        for task in asyncio.all_tasks():
+            if task is not asyncio.tasks.current_task():
                 tasks.append(task)
                 task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)

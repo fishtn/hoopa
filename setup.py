@@ -32,7 +32,7 @@ def read(file_name):
 
 
 requires = [
-    "aiohttp>=3.7.3",
+    "aiohttp>=3.9.5",
     "httpx[http2]>=0.17.0",
     "aioredis>=1.3.1",
     "requests",

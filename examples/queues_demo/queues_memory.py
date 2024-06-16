@@ -20,9 +20,8 @@ class QueuesDemoSpider(hoopa.Spider):
             data_item.type = slide["type"]
             yield data_item
 
-    def process_item(self, item_list: list):
-        for item in item_list:
-            print(item)
+    def process_item(self, item):
+        print(item)
 
 
 if __name__ == "__main__":
