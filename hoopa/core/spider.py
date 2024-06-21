@@ -107,7 +107,7 @@ class BaseSpider:
     async def open_spider(self):
         pass
 
-    async def close_spider(self):
+    async def close_spider(self, spider_stats):
         pass
 
     async def init(self):

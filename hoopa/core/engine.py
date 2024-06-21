@@ -322,6 +322,8 @@ class Engine:
         body += f"\n".join(f"{blank}{k:50s}: {v}" for k, v in spider_stats_sorted_keys)
         logger.info(body)
 
+        await run_function(self.spider.close_spider, spider_stats)
+
         await self.close()
 
     async def close(self):
