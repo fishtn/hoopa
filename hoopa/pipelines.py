@@ -41,11 +41,11 @@ class PipelineManager(MiddlewareManager):
             if not _item:
                 break
 
-            if not isinstance(_item, Item):
+            if not isinstance(_item, Item) and (not (isinstance(_item, list) and all(isinstance(item, Item) for item in _item))):
                 raise InvalidOutput(
                     f"Middleware {method.__self__.__class__.__name__}"
                     ".process_item must return None or "
-                    f"Item, got {type(_item)}"
+                    f"Item or list[Item], got {type(_item)}"
                 )
 
     async def process_exception(self, request, response, item, exception, spider_ins):

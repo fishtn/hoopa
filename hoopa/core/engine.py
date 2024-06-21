@@ -106,6 +106,9 @@ class Engine:
                 request_list.append(callback_result)
             elif isinstance(callback_result, Item):
                 await self.pipeline_manager.process_pipelines(request, response, callback_result, self.spider)
+            elif isinstance(callback_result, list) and all(isinstance(item, Item) for item in callback_result):
+                # 如果是item list，也进行处理
+                await self.pipeline_manager.process_pipelines(request, response, callback_result, self.spider)
             else:
                 callback_result_name = type(callback_result).__name__
                 raise InvalidCallbackResult(f"<Parse invalid callback result type: {callback_result_name}>")

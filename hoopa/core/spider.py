@@ -193,7 +193,7 @@ class Spider(BaseSpider, ABC):
         """
         pass
 
-    async def process_item(self, item: Item):
+    async def process_item(self, item: typing.Union[Item, list[Item]]):
         """
         处理item，爬虫里面的process_item，可以直接调用
         @param item:
