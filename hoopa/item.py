@@ -12,7 +12,7 @@ class Item:
         @param data: 字典，可以直接把字典设置到item
         """
 
-        self._item_name = item_name if item_name else "default_item"  # 提供默认值
+        self._item_name = item_name if item_name else type(self).__name__  # 使用类名作为默认值
 
         if data:
             self.__dict__.update(**data)
