@@ -184,7 +184,7 @@ class Engine:
             response.error = Error(e, traceback.format_exc())
             logger.error(f"{request} {response} callback error \n{response.error.stack}")
 
-        if response.ok == 1:
+        if response.ok != 1:
             await run_function(self.spider.process_failed, task_request, response)
         else:
             await run_function(self.spider.process_succeed, task_request, response)
