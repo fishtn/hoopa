@@ -56,7 +56,10 @@ async def create_instance(objcls, *args, **kwargs):
 async def create_instance_and_init(objcls, engine, *args, **kwargs):
     instance = await create_instance(objcls, engine, *args, **kwargs)
     if hasattr(instance, 'init'):
-        await run_function_no_concurrency(instance.init)
+        if instance.init.__code__.co_argcount == 1:
+            await run_function_no_concurrency(instance.init)
+        else:
+            await run_function_no_concurrency(instance.init, engine.spider)
 
     return instance
 
