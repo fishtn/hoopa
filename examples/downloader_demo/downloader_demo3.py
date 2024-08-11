@@ -10,14 +10,7 @@ import cloudscraper
 
 
 class CloudScraperDownloader(Downloader):
-    def __init__(self, http_client_kwargs, engine):
-        self.http_client_kwargs = http_client_kwargs
-        self.engine = engine
-
-    @classmethod
-    async def create(cls, engine):
-        http_client_kwargs = engine.setting["HTTP_CLIENT_KWARGS"]
-        return cls(http_client_kwargs, engine)
+    scraper = None
 
     def init(self):
         self.scraper = cloudscraper.create_scraper()  # returns a CloudScraper instance

@@ -20,6 +20,15 @@ class Downloader:
     """
     session = None
 
+    def __init__(self, http_client_kwargs, engine):
+        self.http_client_kwargs = http_client_kwargs
+        self.engine = engine
+
+    @classmethod
+    async def create(cls, engine):
+        http_client_kwargs = engine.setting["HTTP_CLIENT_KWARGS"]
+        return cls(http_client_kwargs, engine)
+
     async def close(self):
         pass
 
@@ -45,16 +54,7 @@ class AiohttpDownloader(Downloader):
     """
     Aiohttp下载器
     """
-    def __init__(self, http_client_kwargs, engine):
-        self.http_client_kwargs = http_client_kwargs
-        self.engine = engine
-
-        self.tc = None
-
-    @classmethod
-    async def create(cls, engine):
-        http_client_kwargs = engine.setting["HTTP_CLIENT_KWARGS"]
-        return cls(http_client_kwargs, engine)
+    tc = None
 
     async def init(self):
         if self.http_client_kwargs:
@@ -111,15 +111,6 @@ class HttpxDownloader(Downloader):
     Httpx下载器
     """
 
-    def __init__(self, http_client_kwargs, engine):
-        self.http_client_kwargs = http_client_kwargs
-        self.engine = engine
-
-    @classmethod
-    async def create(cls, engine):
-        http_client_kwargs = engine.setting["HTTP_CLIENT_KWARGS"]
-        return cls(http_client_kwargs, engine)
-
     async def init(self):
         if self.http_client_kwargs:
             self.session = httpx.AsyncClient(**self.http_client_kwargs)
@@ -166,15 +157,6 @@ class RequestsDownloader(Downloader):
     """
     Requests下载器
     """
-
-    def __init__(self, http_client_kwargs, engine):
-        self.http_client_kwargs = http_client_kwargs
-        self.engine = engine
-
-    @classmethod
-    async def create(cls, engine):
-        http_client_kwargs = engine.setting["HTTP_CLIENT_KWARGS"]
-        return cls(http_client_kwargs, engine)
 
     def init(self):
         session = requests.Session()
