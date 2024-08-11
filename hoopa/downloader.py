@@ -123,7 +123,7 @@ class HttpxDownloader(Downloader):
     async def fetch(self, request: Request) -> Response:
         session, is_close = await self.get_session(request)
         _kwargs = request.replace_to_kwargs
-
+        _kwargs.pop('allow_redirects')
         try:
             resp = await self.session.request(**_kwargs)
             response = Response(
