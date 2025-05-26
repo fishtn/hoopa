@@ -1,6 +1,7 @@
 from urllib.parse import urlparse
+from contextlib import asynccontextmanager
 
-import aioredis
+from redis import asyncio as aioredis
 
 
 def get_redis_uri_from_dict(**kwargs):
@@ -29,10 +30,33 @@ async def get_aio_redis(redis_setting):
     @param redis_setting: redis配置dict或者uri
     @return:
     """
-    uri = redis_setting
     if isinstance(redis_setting, dict):
-        uri = get_redis_uri_from_dict(**redis_setting)
-    return await aioredis.create_redis_pool(uri)
+        # 直接使用字典参数创建连接
+        return aioredis.Redis(
+            host=redis_setting.get("host", "localhost"),
+            port=redis_setting.get("port", 6379),
+            db=redis_setting.get("db", 0),
+            password=redis_setting.get("password"),
+            encoding=redis_setting.get("encoding", "utf-8"),
+            decode_responses=True
+        )
+    else:
+        # 使用 URI 创建连接
+        return aioredis.from_url(redis_setting, decode_responses=True)
+
+
+@asynccontextmanager
+async def get_redis_connection(pool):
+    """
+    从连接池获取 Redis 连接的上下文管理器
+    @param pool: Redis 连接池
+    @return: Redis 连接
+    """
+    redis_client = aioredis.Redis(connection_pool=pool)
+    try:
+        yield redis_client
+    finally:
+        await redis_client.aclose()
 
 
 def get_host(redis_setting):

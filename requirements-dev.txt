@@ -1,0 +1,23 @@
+# 构建工具
+build>=0.10.0
+twine>=4.0.0
+wheel>=0.40.0
+setuptools>=65.0.0
+
+# 测试工具
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.0.0
+
+# 代码质量
+black>=23.0.0
+isort>=5.12.0
+flake8>=6.0.0
+mypy>=1.0.0
+
+# 文档
+mkdocs>=1.4.0
+mkdocs-material>=9.0.0
+
+# 其他开发工具
+pre-commit>=3.0.0

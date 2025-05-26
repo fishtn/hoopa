@@ -5,7 +5,7 @@ response对象
 import codecs
 from dataclasses import dataclass
 
-import cchardet
+import charset_normalizer
 import ujson
 from aiohttp import helpers
 from parsel import Selector
