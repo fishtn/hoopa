@@ -224,16 +224,32 @@ class Engine:
     async def consumer(self):
         logger.debug(f"consumer started")
         last_time = time.time()
+        empty_rounds = 0  # 连续空轮次计数
+        max_empty_rounds = 10  # 最大空轮次，超过后退出
+        
         while self.spider.run:
             qsize = self.request_queue.qsize()
             add_task_count = max(self.spider.worker_numbers - qsize - self.retrying, 0)
             # logger.error(f"add_task_count: {add_task_count} {qsize} {self.retrying}")
             add_task_count = min(add_task_count, self.spider.worker_numbers)
+            
+            added_requests = 0
             for _ in range(add_task_count):
                 request_item = await self.scheduler.get(self.spider.priority)
                 if request_item is None:
                     break
                 self.request_queue.put_nowait(request_item)
+                added_requests += 1
+
+            # 如果没有添加任何请求，增加空轮次计数
+            if added_requests == 0:
+                empty_rounds += 1
+                # 如果连续多轮都没有新请求，且队列为空，则退出
+                if empty_rounds >= max_empty_rounds and qsize == 0:
+                    logger.debug("No more requests available, consumer stopping")
+                    break
+            else:
+                empty_rounds = 0  # 重置空轮次计数
 
             # 休眠
             sleep_second = max(self.spider.download_delay - (time.time() - last_time), 0.01)
@@ -241,6 +257,8 @@ class Engine:
             await asyncio.sleep(sleep_second)
             last_time = time.time()
             await self.scheduler.check_scheduler(self.spider)
+            
+        logger.debug("Consumer finished")
 
     async def _start_spider(self):
         """
@@ -252,6 +270,7 @@ class Engine:
         if self.spider.run:
             logger.info(f"Spider start")
 
+        # 启动worker任务
         workers = [
             asyncio.ensure_future(self.start_worker())
             for _ in range(self.spider.worker_numbers * 3)
@@ -259,9 +278,23 @@ class Engine:
 
         logger.debug(f"Worker started: {len(workers)}")
 
-        await self.request_queue.join()
+        # 启动consumer任务
+        consumer_task = asyncio.ensure_future(self.consumer())
 
-        await self.consumer()
+        try:
+            # 等待consumer完成（当没有更多请求时会自动退出）
+            await consumer_task
+            
+            # 等待所有队列中的任务完成
+            await self.request_queue.join()
+            
+        finally:
+            # 取消所有worker任务
+            for worker in workers:
+                worker.cancel()
+            
+            # 等待所有worker任务完成取消
+            await asyncio.gather(*workers, return_exceptions=True)
 
         await self.finish()
 

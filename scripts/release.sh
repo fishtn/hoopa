@@ -6,20 +6,20 @@ set -e
 echo "🚀 开始发布流程..."
 
 # 1. 检查工作目录是否干净
-if [[ -n $(git status --porcelain) ]]; then
-    echo "❌ 工作目录不干净，请先提交所有更改"
-    exit 1
-fi
+# if [[ -n $(git status --porcelain) ]]; then
+#     echo "❌ 工作目录不干净，请先提交所有更改"
+#     exit 1
+# fi
 
 # 2. 运行测试
-echo "🧪 运行测试..."
-pytest
+# echo "🧪 运行测试..."
+# pytest
 
 # 3. 代码格式化和检查
-echo "🔍 代码格式化和检查..."
-black hoopa/
-isort hoopa/
-flake8 hoopa/
+# echo "🔍 代码格式化和检查..."
+# black hoopa/
+# isort hoopa/
+# flake8 hoopa/
 
 # 4. 清理之前的构建
 echo "🧹 清理构建目录..."

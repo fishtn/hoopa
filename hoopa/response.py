@@ -147,7 +147,7 @@ class Response:
             elif self._body is None:
                 raise RuntimeError("Cannot guess the encoding of " "a not yet read body")
             else:
-                encoding = cchardet.detect(self._body)["encoding"]
+                encoding = charset_normalizer.detect(self._body)["encoding"]
         if not encoding:
             encoding = "utf-8"
 
