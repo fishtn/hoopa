@@ -44,6 +44,9 @@ class PipelineManager(MiddlewareManager):
             if isinstance(_item, dict):
                 _item = Item(_item)
 
+            if isinstance(_item, list) and all(isinstance(item, dict) for item in _item):
+                _item = [Item(item) for item in _item]
+
             if not isinstance(_item, Item) and (not (isinstance(_item, list) and all(isinstance(item, Item) for item in _item))):
                 raise InvalidOutput(
                     f"Middleware {method.__self__.__class__.__name__}"
