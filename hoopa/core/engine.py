@@ -104,6 +104,9 @@ class Engine:
         async for callback_result in callback_results:
             if isinstance(callback_result, Request):
                 request_list.append(callback_result)
+            # 如果是字典，也可以跟item一样处理
+            elif isinstance(callback_result, dict):
+                await self.pipeline_manager.process_pipelines(request, response, callback_result, self.spider)
             elif isinstance(callback_result, Item):
                 await self.pipeline_manager.process_pipelines(request, response, callback_result, self.spider)
             elif isinstance(callback_result, list) and all(isinstance(item, Item) for item in callback_result):
