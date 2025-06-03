@@ -29,6 +29,12 @@ class PipelineManager(MiddlewareManager):
     async def process_item(self, item, spider_ins):
         _item = deepcopy(item)
 
+        if isinstance(_item, dict):
+            _item = Item(_item)
+
+        if isinstance(_item, list) and all(isinstance(item, dict) for item in _item):
+            _item = [Item(item) for item in _item]
+
         methods = [spider_ins.process_item] + list(self.methods["process_item"])
 
         for method in methods:
@@ -41,11 +47,7 @@ class PipelineManager(MiddlewareManager):
             if not _item:
                 break
 
-            if isinstance(_item, dict):
-                _item = Item(_item)
-
-            if isinstance(_item, list) and all(isinstance(item, dict) for item in _item):
-                _item = [Item(item) for item in _item]
+ 
 
             if not isinstance(_item, Item) and (not (isinstance(_item, list) and all(isinstance(item, Item) for item in _item))):
                 raise InvalidOutput(

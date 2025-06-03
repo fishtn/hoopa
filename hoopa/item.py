@@ -11,7 +11,12 @@ class Item:
         @param item_name: item名称
         @param data: 字典，可以直接把字典设置到item
         """
-
+        
+        # 处理只传递data的情况：Item(_item)
+        if isinstance(item_name, dict) and data is None:
+            data = item_name
+            item_name = "item"
+        
         self._item_name = item_name if item_name else type(self).__name__  # 使用类名作为默认值
 
         if data:
